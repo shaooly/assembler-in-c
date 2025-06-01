@@ -4,22 +4,11 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <unistd.h>
+#include <ctype.h>
 
 int main() {
-    char *nigg = "hsss";
-    char nigga[82];
-    strcpy(nigga, nigg);
-    printf("%s\n", nigga);
-    char mystring[] = "         Hello                World";
-    char *tok = strtok(mystring, " ");
-    printf("%s", tok);
-    while (tok != 0) {
-        printf("%s\n", tok);
-
-        // Use of strtok
-        // go through other tokens
-        tok = strtok(0, " ");
-    }
-
+    char c = '1';
+    // printf("%d", isalpha('f'));
+    printf("%d", isalnum('0'));
     return 0;
 }
