@@ -11,6 +11,8 @@ char *get_first_word(char *line) {
     char *first_word = strtok(&line[i], " ");
     char *second_word = strtok(NULL, "\t");
     printf("the first word is %s and the second word is %s\n", first_word, second_word);
+    // this isn't such a good way to parse the commands
+    // in the actual not in the pre i will do it differently
 
     return "";
 }
@@ -22,7 +24,6 @@ int main(void) {
     FILE *source_asm = fopen(filename, "r");
     FILE *post_pre_asm = fopen("postpre.asm", "w");
     char line[81]; // assuming max line length and is 81 characters long including "\n"
-
 
     while (fgets(line, 81, source_asm)) {
         // check if line is longer than 81 chars
