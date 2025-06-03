@@ -17,48 +17,34 @@ typedef struct  macro_Linked_list{
     struct macro_Linked_list* next_macro;
 }macro_Linked_list;
 
+int contains(macro_Linked_list* macro_table, char* command_name) {
+    macro_Linked_list* iteratepoint = macro_table;
+    while (iteratepoint != NULL) {
+        if (strcmp(command_name, iteratepoint->name) == 0) {
+            return 1;
+        }
+        macro_Linked_list* trmp = iteratepoint->next_macro;
+        iteratepoint = trmp;
+    }
+    return 0;
+}
+
 
 int main() {
-    macro_Linked_list macro_table;
+    macro_Linked_list* macro_table = malloc(sizeof(macro_Linked_list));
     // pointer to the begging of the table to "save" the original pointer;
-    macro_Linked_list* mcropoint = &macro_table;
-    Linked_List first_ins;
+    macro_Linked_list* mcropoint = macro_table;
 
-    // this is the scnd instruction
-    strcpy(first_ins.instruction, "mov r1, r2");
-
-    // this is the first instruction
-    Linked_List second_ins;
-    strcpy(second_ins.instruction, "inc r1");
-    first_ins.next_instruction = &second_ins;
-
-    // third
-    Linked_List third;
-    strcpy(third.instruction, "M1:		.mat [2][2] 1,2,3,4");
-    second_ins.next_instruction = &third;
-    third.next_instruction = NULL;
-
-
-    // create mcropoint
     strcpy(mcropoint->name, "shaooly");
-    mcropoint->first_instruction = &first_ins;
+    mcropoint->first_instruction = NULL;
     mcropoint->next_macro = NULL;
 
-    // printf("%s\n", mcropoint->first_instruction->instruction);
-    // printf("%s\n", mcropoint->first_instruction->next_instruction->instruction);
-    // printf("%s\n", mcropoint->first_instruction->next_instruction->next_instruction->instruction);
-    /// soff soff srabak ars
-
-
-
-    macro_Linked_list* iteratepoint = &macro_table;
-    // first print out of loop
-    // printf("%s", iteratepoint->first_instruction->instruction);
-
-    Linked_List* iterate_linked = iteratepoint->first_instruction;
-
-    while (iterate_linked!=NULL) {
-        printf("%s\n", iterate_linked->instruction);
-        iterate_linked = iterate_linked->next_instruction;
-    }
+    macro_Linked_list *to_add = malloc(sizeof (macro_Linked_list));
+    to_add->next_macro = NULL;
+    to_add->first_instruction = NULL;
+    strcpy(to_add->name, "freinbach");
+    mcropoint->next_macro = to_add;
+    free(to_add);
+    free(macro_table);
+    printf("%d", contains(mcropoint, ""));
 }
