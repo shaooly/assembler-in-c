@@ -10,7 +10,8 @@ LOOP:	jmp END
 		bne LOOP
 		mov sssaada
 		bne koa
-END:	stop
+		mov M1[r3][r3],r3
+		bne LOOP
 STR:	.string "abcdef"
 LENGTH:	.data 6,-9,15
 K:		.data 22

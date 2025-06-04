@@ -15,7 +15,7 @@ LOOP:	jmp END
 		bruh
 		my_mcro
 		bruh
-END:	stop
+END:	my_mcro
 STR:	.string "abcdef"
 LENGTH:	.data 6,-9,15
 K:		.data 22

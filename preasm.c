@@ -100,7 +100,7 @@ int main(void) {
         char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
         strncpy(line_for_tokenisation, &line[i],LINE_LENGTH);
 
-        char *first_word = strtok(line_for_tokenisation, " ");
+        char *first_word = strtok(line_for_tokenisation, " \t");
         char *second_word = strtok(NULL, " \t\n");
         char *third_word = strtok(NULL, " \t\n");
         // this isn't such a good way to parse the instructions
@@ -146,7 +146,9 @@ int main(void) {
         else { // comes here if (exists mcro = 0, the command is not mcro and not end mcro meaning it's instruction
             macro_Linked_list* banana = macro_table;
 
-            if (contains(banana, first_word)) {
+            if (contains(banana, first_word) || (first_word[strlen(first_word) - 1] == ':'
+                        && contains(banana, second_word)
+                        && third_word == NULL)) { // check if command is in macro table
                 // bring the macro hereee
                 macro_Linked_list* iteratepoint = macro_table;
                 if (first_word[strlen(first_word) - 1] == '\n') {
@@ -161,13 +163,24 @@ int main(void) {
                             iterate_linked = temp;
                         }
                     }
+                    if (second_word != NULL) {
+                        if (first_word[strlen(first_word) - 1] == ':'
+                            && strcmp(iteratepoint->name, second_word) == 0
+                            && third_word == NULL) {
+                            Linked_List* iterate_linked = iteratepoint->first_instruction;
+                            while (iterate_linked!=NULL) {
+                                fprintf(post_pre_asm, iterate_linked->instruction);
+                                Linked_List* temp = iterate_linked->next_instruction;
+                                iterate_linked = temp;
+                            }
+                        }
+                    }
                     macro_Linked_list* trmp = iteratepoint->next_macro;
                     iteratepoint = trmp;
                 }
             }
             else {
                 fprintf(post_pre_asm, line);
-                printf("%s", line);
             }
         }
         IC++;
