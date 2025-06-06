@@ -168,6 +168,7 @@ int main(void) {
                             && strcmp(iteratepoint->name, second_word) == 0
                             && third_word == NULL) {
                             Linked_List* iterate_linked = iteratepoint->first_instruction;
+                            fprintf(post_pre_asm, first_word);
                             while (iterate_linked!=NULL) {
                                 fprintf(post_pre_asm, iterate_linked->instruction);
                                 Linked_List* temp = iterate_linked->next_instruction;

@@ -5,4 +5,5 @@ set(CMAKE_C_STANDARD 90)
 
 add_executable(untitled2
         preasm.c
-        trying.c)
+        trying.c
+        firstpassage.c)
