@@ -16,4 +16,3 @@ STR:	.string "abcdef"
 LENGTH:	.data 6,-9,15
 K:		.data 22
 M1:		.mat [2][2] 1,2,3,4
-.brother trynawasteingmemory

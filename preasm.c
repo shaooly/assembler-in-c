@@ -5,19 +5,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
+#include "preasm.h"
 
-#define LINE_LENGTH 81
-
-typedef struct Linked_List{
-    char instruction[LINE_LENGTH];
-    struct Linked_List* next_instruction;
-} Linked_List;
-
-typedef struct  macro_Linked_list{
-    char name[30];
-    struct Linked_List* first_instruction;
-    struct macro_Linked_list* next_macro;
-}macro_Linked_list;
 
 int contains(macro_Linked_list* macro_table, char* command_name) {
     if (command_name[strlen(command_name) - 1] == '\n') {
@@ -46,7 +35,8 @@ int name_valid(char *name, int IC) {
         fprintf(stderr, "Error in line %d. The first char in macro name is a number.\n", IC);
         return 0;
     }
-    for (int i = 0; name[i] != '\0' && name[i] != '\n'; i++) {
+    int i =0;
+    for (i = 0; name[i] != '\0' && name[i] != '\n'; i++) {
         if (isalnum(name[i]) == 0 && name[i] != '_') {
             fprintf(stderr, "Error in line %d. The char in the %dth position in macro name is not alphanumeric.\n"
                 , IC, i);
@@ -57,7 +47,7 @@ int name_valid(char *name, int IC) {
     if (name[strlen(name) - 1] == '\n') {
         name[strlen(name) - 1] = '\0'; // remove newline if there is any
     }
-    for (int i = 0; i < 18; i++) {
+    for (i = 0; i < 18; i++) {
         if (strcmp(name, known_instructions[i]) == 0) { // if macro name is known instruction name.
             fprintf(stderr, "Error in line %d. The macro name is a known instruction name (%s).", IC,
                 known_instructions[i]);
@@ -121,6 +111,7 @@ int main(void) {
             to_add->first_instruction = NULL;
             mcropoint->next_macro = to_add;;
             instructionpoint = mcropoint->first_instruction; // pointer to add instruction too
+            printf("adding macro with name: %s", second_word);
 
         }
         else if (strcmp(first_word, "mcroend\n") == 0) {
@@ -154,7 +145,7 @@ int main(void) {
                 if (first_word[strlen(first_word) - 1] == '\n') {
                     first_word[strlen(first_word) - 1] = '\0'; // remove newline if there is any
                 }
-                while (iteratepoint != NULL) {
+                while (iteratepoint->next_macro != NULL) {
                     if (strcmp(iteratepoint->name, first_word) == 0) {
                         Linked_List* iterate_linked = iteratepoint->first_instruction;
                         while (iterate_linked!=NULL) {
@@ -189,7 +180,12 @@ int main(void) {
 
     // free my boy :)
     macro_Linked_list* iteratepoint = macro_table;
-    while (iteratepoint != NULL) {
+    FILE *macrotxt = fopen("macros.tmp", "w");
+
+    while (iteratepoint->first_instruction->instruction != NULL) {
+        printf("macro name: %s", iteratepoint->name);
+        fprintf(macrotxt, iteratepoint->name);
+        fprintf(macrotxt, "\n");
         Linked_List* iterate_linked = iteratepoint->first_instruction;
         while (iterate_linked!=NULL) {
             Linked_List* temp = iterate_linked->next_instruction;

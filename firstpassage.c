@@ -5,8 +5,10 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
+#include "preasm.h"
 
-#define LINE_LENGTH 81
+extern macro_Linked_list* macro_table;
+
 
 typedef struct label_List{
     int value;
@@ -32,13 +34,15 @@ int is_symbol(char first_word[LINE_LENGTH]) {
 int is_data_storing(char first_word[LINE_LENGTH], char second_word[LINE_LENGTH]) {
     char *data_storers[3] = {".data", ".string", ".mat"};
     if (first_word[strlen(first_word) - 1] == ':') {
-        for (int i = 0; i < 3; i++) {
+        int i = 0;
+        for (i = 0; i < 3; i++) {
             if (strcmp(second_word, data_storers[i]) == 0) {
                 return 1;
             }
         }
     }
-    for (int i = 0; i < 3; i++) {
+    int i = 0;
+    for (i = 0; i < 3; i++) {
         if (strcmp(second_word, data_storers[i]) == 0) {
             return 1;
         }
@@ -64,6 +68,7 @@ int main() {
             exists_label = 1;
             if (is_data_storing(first_word, second_word)) {
                 printf("hi, i'm data storing");
+                printf(macro_table->name);
             }
 
         }
