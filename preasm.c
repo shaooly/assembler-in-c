@@ -182,7 +182,7 @@ int main(void) {
     macro_Linked_list* iteratepoint = macro_table;
     FILE *macrotxt = fopen("macros.tmp", "w");
 
-    while (iteratepoint->first_instruction->instruction != NULL) {
+    while (iteratepoint->first_instruction != NULL) {
         printf("macro name: %s", iteratepoint->name);
         fprintf(macrotxt, iteratepoint->name);
         fprintf(macrotxt, "\n");
@@ -196,7 +196,8 @@ int main(void) {
         free(iteratepoint);
         iteratepoint = trmp;
     }
-
+    free(iteratepoint); // free the final "NULL" node malloced to null pointers :)
+    // leaked so much memory before this haha
     // finished making the macro table
 
     fclose(source_asm);
