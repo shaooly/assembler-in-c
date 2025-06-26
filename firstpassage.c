@@ -86,18 +86,80 @@ void insert_to_label(label_list *list, char label_name[LINE_LENGTH], int *error,
     *error = 1;
 }
 
-void identify_data(char *data_type, char *data, int *DC) {
-    printf("The data is: ");
-    while (data != NULL) {
-        printf("%s", data);
-        data = strtok(NULL, " \t\n");
+void identify_data(char *data_type, char *data, int *DC, int *error, int IC) {
+    char full_data[LINE_LENGTH] = "";
+
+    if (strcmp(data_type, ".string") != 0) {
+        while (data != NULL) {
+            strcat(full_data, data);
+            data = strtok(NULL, " \t\n");
+        }
     }
-    printf(" and is from type %s\n", data_type);
+    else {
+        while (data != NULL) {
+            strcat(full_data, data);
+            data = strtok(NULL, "");
+        }
+        // printf(full_data);
+    }
+    int i = 0;
+    int word_count = 0;
+    if (strcmp(data_type, ".data") == 0) { // if contaings numbers and such
+        word_count++; // counting the commas, so there will always be n - 1 commas
+        while (i < strlen(full_data)) {
+            if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
+                (full_data[i] == ',' && i == 0) || // psik the first
+                (full_data[i] == ',' && i + 1 == strlen(full_data)) // psik the last :O
+                ) {
+                *error = 1;
+                fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", IC);
+                return;
+            }
+            if (full_data[i] == ',') { // new number and we know not two psikim next to each other
+                word_count++; // new mila
+            }
+            // make sure the plus sign only appears next to a number or at the start of the expression :)
+            else if ((full_data[i] == '+' || full_data[i] == '-') && full_data[i - 1] != ',' && i != 0) {
+                *error = 1;
+                fprintf(stderr, "You have a sign at a bad place :( at line %d\n", IC);
+            }
+            // check if all are numbers
+            // + and - signs give false positive so account for these tooooooooooooooo
+            else if ((full_data[i] < '0' || full_data[i] > '9') && full_data[i] != '+' && full_data[i] != '-') {
+                *error = 1;
+                fprintf(stderr, "You have something that isn't a number in line %d"
+                    , full_data[i], IC);
+            }
+        i++;
+        }
+    }
+    if (strcmp(data_type, ".string") == 0) { // finished not ruining
+        // count letters and account for quotes
+        if (full_data[0] != '"' || full_data[strlen(full_data) - 1] != '"') {
+            printf("0: %c|last: %c", full_data[0], full_data[strlen(full_data) - 2]);
+            *error = 1;
+            fprintf(stderr, "String not starting or ending in quotes. In line %d", IC);
+            return;
+        }
+        printf("passed");
+
+    }
+    if (strcmp(data_type, ".mat") == 0) {
+        //
+    }
+    if (strcmp(data_type, ".entry") == 0) {
+
+    }
+    if (strcmp(data_type, ".extern") == 0) {
+
+    }
+
+
 }
 
 int main() {
     int DC = 0;
-    int IC = 0;
+    int IC = 1;
     int exists_error = 0;
     int exists_label = 0;
     FILE *source_asm = fopen("postpre.asm", "r");
@@ -113,9 +175,23 @@ int main() {
         char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
         strncpy(line_for_tokenisation, line,LINE_LENGTH);
         char *first_word = strtok(line_for_tokenisation, " \t");
-        char *second_word = strtok(NULL, " \t\n");
-        char *third_word = strtok(NULL, " \t\n");
+        char *second_word;
+        // if we get string as data we want it not to erase the spaces
+        // account for this early on
 
+        if (strcmp(first_word, ".string") == 0) { // this is only for the weird symbol case.
+            second_word = strtok(NULL, "");
+        }
+        else {
+            second_word = strtok(NULL, " \t\n");
+        }
+        char *third_word;
+        if (strcmp(second_word, ".string") == 0) {
+             third_word = strtok(NULL, "");
+        }
+        else {
+            third_word = strtok(NULL, " \t\n");
+        }
         // this is for the case of wasting space in assembly and defining a line like this:
         // .data "somedata"
         // for some reason it's possible, in the project handbook i didn't see any refrence to it
@@ -128,10 +204,10 @@ int main() {
                 // in the case that the decleration is only .data, we will call without the name (first_word)
                 insert_to_label(the_label_list, first_word, &exists_error, DC); // 6
                 if (weird_symbol_flag) {
-                    identify_data(first_word, second_word, &DC);
+                    identify_data(first_word, second_word, &DC, &exists_error, IC);
                 }
                 else {
-                    identify_data(second_word, third_word, &DC); // 7
+                    identify_data(second_word, third_word, &DC, &exists_error, IC); // 7
 
                 }
             }
@@ -139,7 +215,7 @@ int main() {
         else { // if not data (line 8
 
         }
-
+    IC++;
     }
 
     fclose(source_asm);

@@ -12,8 +12,8 @@ LOOP:	jmp END
 		bne koa
 END:		mov M1[r3][r3],r3
 		bne LOOP
-STR:	.string "abcdef"
-LENGTH:	.data 6,-9,15
+STR:	.string "abcd  ef"
+LENGTH:	.data 6,910,9
 K:		.data 22
-M1:		.mat [2][2] 1,2,3,4
-.string "wastingspaceonpurpose"
+M1:		.mat [2]	[2] 1,2,	3,4
+.string "wastingspaceo npurpose"
