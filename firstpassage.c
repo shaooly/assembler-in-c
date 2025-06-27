@@ -135,24 +135,31 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int IC) {
     }
     if (strcmp(data_type, ".string") == 0) { // finished not ruining
         // count letters and account for quotes
-        if (full_data[0] != '"' || full_data[strlen(full_data) - 1] != '"') {
-            printf("0: %c|last: %c", full_data[0], full_data[strlen(full_data) - 2]);
-            *error = 1;
-            fprintf(stderr, "String not starting or ending in quotes. In line %d", IC);
-            return;
+        i = 0;
+        // the condition after the || is for a very very rare case in which
+        // the last line of the code is a string data storing decleration
+        // without a name
+        // for example .string "hello"
+        while (full_data[i] != '\n' && full_data[i] != '\0') {
+            i++;
         }
-        printf("passed");
-
+        // now i is the length of the string so i-1 is supposed to be "
+        if (full_data[0] == '"' && full_data[i-1] == '"') { // check if valid corners
+            word_count += i - 1; // minus two quotes + '\0'
+            // printf("I would've added %d words\n", word_count);
+        }
     }
     if (strcmp(data_type, ".mat") == 0) {
-        //
+        int first_number;
+        int second_number;
+        if (sscanf(full_data, "[%d][%d]", &first_number, &second_number) == 2) {
+            word_count += first_number * second_number;
+        }
+        // printf("I would've added %d words\n", word_count);
     }
-    if (strcmp(data_type, ".entry") == 0) {
 
-    }
-    if (strcmp(data_type, ".extern") == 0) {
-
-    }
+    //update DC
+    *DC += word_count;
 
 
 }
@@ -199,7 +206,7 @@ int main() {
         int weird_symbol_flag = 0; // in case there is a "weird" symbol (data wasting space for example .data)
 
         exists_label = is_symbol(first_word, &weird_symbol_flag);
-        if (is_data_storing(first_word, second_word)) {
+        if (is_data_storing(first_word, second_word)) { // 5
             if (exists_label == 1) {
                 // in the case that the decleration is only .data, we will call without the name (first_word)
                 insert_to_label(the_label_list, first_word, &exists_error, DC); // 6
@@ -208,9 +215,9 @@ int main() {
                 }
                 else {
                     identify_data(second_word, third_word, &DC, &exists_error, IC); // 7
-
                 }
             }
+            printf("Identified line %s and updated DC to be %d\n", first_word, DC);
         }
         else { // if not data (line 8
 
