@@ -5,6 +5,8 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <ctype.h>
+#include <math.h>
+
 #include "preasm.h"
 
 extern macro_Linked_list* macro_table;
@@ -187,8 +189,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int IC) {
             // + and - signs give false positive so account for these tooooooooooooooo
             else if ((full_data[i] < '0' || full_data[i] > '9') && full_data[i] != '+' && full_data[i] != '-') {
                 *error = 1;
-                fprintf(stderr, "You have something that isn't a number in line %d"
-                    , full_data[i], IC);
+                fprintf(stderr, "You have something that isn't a number in line %d", IC);
             }
         i++;
         }
@@ -224,6 +225,86 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int IC) {
 
 }
 
+int is_number(char *word) {
+    int i = 1; // start from one because of #
+    if (word[1] == '+' || word[1] == '-') { // if - or + ignore
+        i = 2;
+    }
+    while (word[i] != '\0') {
+        if (word[i] < '0' || word[i] > '9') {
+            return 0;
+        }
+        i++;
+    }
+    return 1;
+}
+
+int is_register_range(char num) { // i can do one liner but nah not readable
+    if (num < '0' || num > '7') {
+        return 0;
+    }
+    return 1;
+}
+
+int analyze_matrix(char *first_op) {
+    char matrix_label_name[LINE_LENGTH];
+    char first_bracket[LINE_LENGTH];
+    char second_bracket[LINE_LENGTH];
+
+    if (sscanf(first_op, "%[^[][%[^]]][%[^]]]", matrix_label_name, first_bracket, second_bracket) == 3) {
+        // printf("the name is: %s\n", matrix_label_name);
+        // printf("the first bracket is: %s\n", first_bracket);
+        // printf("the second bracket is: %s\n", second_bracket);
+    }
+    return 0;
+}
+
+// explanation:
+// i'm going to firs analyze the first operand and check what it is
+// then i'm goin to analyze the second operand
+// and then i'm going to do some ifs to check ifs to check which case is happening and
+// and add to L accordingly.
+int analyze_operands(char *instruction, char *first_op, char *second_op, int *error, int IC) {
+    int L = 1;
+    int register_flag = 0; // because we want to make sure we only add one word for registers (in case there are two)
+
+    // check first operand:
+    if (first_op) {
+
+        // check if immediate
+        if (first_op[0] == '#') {
+            if (is_number(first_op)) {
+                L += 1;
+            }
+            else {
+                *error = 1;
+                fprintf(stderr, "You have something that isn't a number in line %d", IC);
+            }
+        }
+        // check if register
+        else if (first_op[0] == 'r' && is_register_range(first_op[1])) {
+            L += 1;
+            printf("hi found register %s !\n", first_op);
+            register_flag = 1;
+        }
+        else if (analyze_matrix(first_op)) {
+
+        }
+    }
+
+
+    // check als oi
+    // first is with
+
+
+
+
+
+
+    // operand is a label ?
+    return L;
+}
+
 int main() {
     int DC = 0;
     int IC = 1;
@@ -251,7 +332,7 @@ int main() {
         else {
             second_word = strtok(NULL, " \t\n");
         }
-        char *third_word;
+        char *third_word = 0;
         if (second_word) {
             if (strcmp(second_word, ".string") == 0) {
                 third_word = strtok(NULL, "");
@@ -294,11 +375,21 @@ int main() {
                     insert_to_label(the_label_list, second_word, "external", &exists_error, 0);
                 }
         }
-        else if (exists_label) { // 11
-            insert_to_label(the_label_list, first_word, "code", &exists_error, IC);
-            }
         else { // instruction without label ! // this means that first word has to be a known instruction
-            if (is_instruction(first_word, IC, &exists_error)) { // 12
+            int L = 0;
+            if (exists_label) {
+                insert_to_label(the_label_list, first_word, "code", &exists_error, IC); // 11
+                if (is_instruction(second_word, IC, &exists_error)) { // 12
+                    char *forth_word = strtok(NULL, " \t\n");
+                    // 13
+                    L = analyze_operands(second_word, third_word, forth_word, &exists_error,
+                        IC);
+                }
+            }
+            else if (is_instruction(first_word, IC, &exists_error)) { // 12
+                L = analyze_operands(first_word, second_word, third_word, &exists_error, IC);
+
+
 
             }
 
