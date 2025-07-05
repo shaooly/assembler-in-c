@@ -19,6 +19,12 @@ typedef struct label_list{
     struct label_list* next_label;
 } label_list;
 
+typedef struct binary_line {
+    int L;
+    int IC;
+    unsigned short *words;
+    struct binary_line *next;
+} binary_line;
 
 int name_valid(char *name, int IC, int *error) {
     const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne", "jsr",
@@ -246,12 +252,14 @@ int is_register_range(char num) { // i can do one liner but nah not readable
     return 1;
 }
 
-int analyze_matrix(char *first_op) {
+int analyze_matrix(char *op) {
     char matrix_label_name[LINE_LENGTH];
     char first_bracket[LINE_LENGTH];
     char second_bracket[LINE_LENGTH];
 
-    if (sscanf(first_op, "%[^[][%[^]]][%[^]]]", matrix_label_name, first_bracket, second_bracket) == 3) {
+    if (sscanf(op, "%[^[][%[^]]][%[^]]]", matrix_label_name, first_bracket, second_bracket) == 3) {
+        return 1;
+        // leaving this here for later
         // printf("the name is: %s\n", matrix_label_name);
         // printf("the first bracket is: %s\n", first_bracket);
         // printf("the second bracket is: %s\n", second_bracket);
@@ -264,45 +272,51 @@ int analyze_matrix(char *first_op) {
 // then i'm goin to analyze the second operand
 // and then i'm going to do some ifs to check ifs to check which case is happening and
 // and add to L accordingly.
-int analyze_operands(char *instruction, char *first_op, char *second_op, int *error, int IC) {
-    int L = 1;
-    int register_flag = 0; // because we want to make sure we only add one word for registers (in case there are two)
 
-    // check first operand:
-    if (first_op) {
-
-        // check if immediate
-        if (first_op[0] == '#') {
-            if (is_number(first_op)) {
-                L += 1;
-            }
-            else {
-                *error = 1;
-                fprintf(stderr, "You have something that isn't a number in line %d", IC);
-            }
+int words_per_operand(char *operand, int *error, int *register_flag, int IC) {
+    // check if immediate
+    // printf("the operand is %s\n", operand);
+    if (operand[0] == '#') {
+        if (is_number(operand)) {
+            //printf("line number %d added 1 word\n", IC);
+            return 1;
         }
-        // check if register
-        else if (first_op[0] == 'r' && is_register_range(first_op[1])) {
-            L += 1;
-            printf("hi found register %s !\n", first_op);
-            register_flag = 1;
-        }
-        else if (analyze_matrix(first_op)) {
-
-        }
+        *error = 1;
+        fprintf(stderr, "You have something that isn't a number in line %d", IC);
     }
+    // check if register
+    else if (operand[0] == 'r' && is_register_range(operand[1])) {
+        *register_flag = 1;
+        //printf("line number %d added 1 word\n", IC);
+        return 1;
+    }
+    else if (analyze_matrix(operand)) {
+        //printf("line number %d added 2 words\n", IC);
+        return 2;
+    }
+    // in this case, the first operand is not a matrix, direct, or register.
+    // there are two possible scenarios - it's a label or it's junk
+    // for now, let's assume it's a label and in the second maavar we will check if it's ok or not
+    else {
+        //printf("line number %d added 1 words\n", IC);
+        return 1;; // in the case of a label
+    }
+}
 
+int analyze_operands(char *instruction, char *first_op, char *second_op, int *error, int IC) {
+        int L = 1;
+        int register_flag = 0; // because we want to make sure we only add one word for registers (in case there are two)
 
-    // check als oi
-    // first is with
+        // check first operand:
+        if (first_op) {
+            L += words_per_operand(first_op, error, &register_flag, IC);
+        }
+        if (second_op) {
+            L += words_per_operand(second_op, error, &register_flag, IC);
+        }
 
-
-
-
-
-
-    // operand is a label ?
     return L;
+
 }
 
 int main() {
@@ -359,7 +373,6 @@ int main() {
                     identify_data(second_word, third_word, &DC, &exists_error, IC); // 7
                 }
             }
-            printf("Identified line %s and updated DC to be %d\n", first_word, DC);
         }
         // non-data (entry and extern) are always weird flag cases
         else if (weird_symbol_flag) { // if not data (line 8 // actually it is always here no need
@@ -382,15 +395,30 @@ int main() {
                 if (is_instruction(second_word, IC, &exists_error)) { // 12
                     char *forth_word = strtok(NULL, " \t\n");
                     // 13
+                    // a problem has arisen that i didn't take into consideration:
+                    // sometimes there will be a "," without a space
+                    // i don't know if it's allowed or not but let's assume it is
+                    // i'll strtok it again
+                    if (forth_word == NULL) {
+                        char copy_third[LINE_LENGTH]; // in case no space between the psikim
+                        strncpy(copy_third, third_word,LINE_LENGTH);
+                        third_word = strtok(copy_third, ",");
+                        forth_word = strtok(NULL, ",");
+                        // printf("splitted here %s", forth_word);
+                    }
                     L = analyze_operands(second_word, third_word, forth_word, &exists_error,
                         IC);
                 }
             }
             else if (is_instruction(first_word, IC, &exists_error)) { // 12
+                if (third_word == NULL) {
+                    char copy_second[LINE_LENGTH]; // in case no space between the psikim
+                    strncpy(copy_second, second_word,LINE_LENGTH);
+                    second_word = strtok(copy_second, ",");
+                    third_word = strtok(NULL, ",");
+                }
                 L = analyze_operands(first_word, second_word, third_word, &exists_error, IC);
-
-
-
+                printf("total words for line %d: %d\n", IC, L);
             }
 
         }

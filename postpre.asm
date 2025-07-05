@@ -1,5 +1,5 @@
 MAIN:	mov M1[r2][r7],LENGTH
-add r2, STR
+		add r2, STR
 LOOP:	jmp END
 		prn #-5
 		prn #+5
@@ -11,8 +11,9 @@ LOOP:	jmp END
 		bne LOOP
 		mov sssaada
 		bne koa
-		mov r1, r3
+		mov r1,r3
 END:	mov M1[r3][r3],r3
+		mov M1[r3][r3], M2[r5][r7]
 		bne LOOP
 STR:	.string "abcdef"
 LENGTH:	.data 6,910,9
