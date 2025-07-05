@@ -9,6 +9,12 @@
 
 #include "preasm.h"
 
+#define IMMEDIATE_CODE 0
+#define DIRECT_CODE 1
+#define MATRIX_CODE 2
+#define REGISTER_CODE 3
+
+
 extern macro_Linked_list* macro_table;
 
 
@@ -22,13 +28,13 @@ typedef struct label_list{
 typedef struct binary_line {
     int L;
     int IC;
-    unsigned short *words;
+    unsigned short words[5];
     struct binary_line *next;
 } binary_line;
 
 int name_valid(char *name, int IC, int *error) {
-    const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne", "jsr",
-        "red", "prn", "rts", "stop", "mcro", "mcroend"};
+    const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne",
+        "jsr", "red", "prn", "rts", "stop", "mcro", "mcroend"};
 
     if (strlen(name) > 30) {
         fprintf(stderr, "Error in line %d. The label name is longer than 30 chars.\n", IC);
@@ -227,8 +233,6 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int IC) {
 
     //update DC
     *DC += word_count;
-
-
 }
 
 int is_number(char *word) {
@@ -273,12 +277,13 @@ int analyze_matrix(char *op) {
 // and then i'm going to do some ifs to check ifs to check which case is happening and
 // and add to L accordingly.
 
-int words_per_operand(char *operand, int *error, int *register_flag, int IC) {
+int words_per_operand(char *operand, int *operand_type, int *error, int *register_flag, int IC) {
     // check if immediate
     // printf("the operand is %s\n", operand);
     if (operand[0] == '#') {
         if (is_number(operand)) {
             //printf("line number %d added 1 word\n", IC);
+            *operand_type = IMMEDIATE_CODE;
             return 1;
         }
         *error = 1;
@@ -286,12 +291,17 @@ int words_per_operand(char *operand, int *error, int *register_flag, int IC) {
     }
     // check if register
     else if (operand[0] == 'r' && is_register_range(operand[1])) {
-        *register_flag = 1;
-        //printf("line number %d added 1 word\n", IC);
-        return 1;
+        if (!register_flag) {
+            *register_flag = 1;
+            //printf("line number %d added 1 word\n", IC);
+            return 1;
+        }
+        *operand_type = REGISTER_CODE;
+        return 0;
     }
     else if (analyze_matrix(operand)) {
         //printf("line number %d added 2 words\n", IC);
+        *operand_type = MATRIX_CODE;
         return 2;
     }
     // in this case, the first operand is not a matrix, direct, or register.
@@ -299,23 +309,58 @@ int words_per_operand(char *operand, int *error, int *register_flag, int IC) {
     // for now, let's assume it's a label and in the second maavar we will check if it's ok or not
     else {
         //printf("line number %d added 1 words\n", IC);
+        *operand_type = DIRECT_CODE;
         return 1;; // in the case of a label
     }
 }
 
-int analyze_operands(char *instruction, char *first_op, char *second_op, int *error, int IC) {
+int analyze_operands(char *instruction, char *first_op, char *second_op, int *dest_mion, int *source_mion,
+    int *error, int IC) {
         int L = 1;
         int register_flag = 0; // because we want to make sure we only add one word for registers (in case there are two)
 
         // check first operand:
         if (first_op) {
-            L += words_per_operand(first_op, error, &register_flag, IC);
+            L += words_per_operand(first_op, source_mion, error, &register_flag, IC);
         }
         if (second_op) {
-            L += words_per_operand(second_op, error, &register_flag, IC);
+            L += words_per_operand(second_op, dest_mion, error, &register_flag, IC);
         }
 
     return L;
+
+}
+
+unsigned short make_binary_line(char *instruction, int *first_op_type, int *second_op_type) {
+    // first analyze instruction
+    // then analyze the immidiate mioon
+    // how i do it:
+    // first, get A,R,E
+    // second get mioon of dest operand
+    // third get mioon of source operand
+    // lastly get the opcode
+    // in the first passage all i need to do it just set the source if its immediate and the opcode
+    // ARE will always be 00 for the first passage !
+    // so i won't touch it
+
+    unsigned short final_bin = 0;
+    // OPCODE
+    // the idea with this is to make the index of each instruction the number and then transform i to binary
+    const char *known_instructions[16] = {"mov", "cmp", "add", "sub", "not", "clr", "lea", "inc", "dec", "jmp", "bne",
+        "red", "prn", "jsr", "rts", "stop"};
+    int i = 0;
+    for (i = 0; i<16; i++) {
+        if (strcmp(instruction, known_instructions[i]) == 0) {
+            break;
+            // printf("the instruction is: %s and its hex opcode is %d\n", instruction, i);
+        }
+    }
+    // work on shifting logic
+    unsigned short dest_type = *second_op_type << 3;
+    unsigned short source_type = *first_op_type << 5;
+    unsigned short opcode = i << 6;
+    unsigned short final_bit = opcode | dest_type | source_type;
+    printf("finbal bitwise is: %d \n", final_bit);
 
 }
 
@@ -376,20 +421,24 @@ int main() {
         }
         // non-data (entry and extern) are always weird flag cases
         else if (weird_symbol_flag) { // if not data (line 8 // actually it is always here no need
-                if (strcmp(first_word, ".entry") == 0) { // 9
-                    IC++;
-                    continue;
-                }
-                // if i was arrogant i would've left this if out of the code because if it reached here
-                // and it is a symbol and clearly is not any of the other 4 options so it's for sure
-                // insert_to_label(label_list *list, char label_name[LINE_LENGTH], int *error, int DC)
-                if (strcmp(first_word, ".extern") == 0) {
-                    // 10
-                    insert_to_label(the_label_list, second_word, "external", &exists_error, 0);
-                }
+            if (strcmp(first_word, ".entry") == 0) { // 9
+                IC++;
+                continue;
+            }
+            // if i was arrogant i would've left this if out of the code because if it reached here
+            // and it is a symbol and clearly is not any of the other 4 options so it's for sure
+            // insert_to_label(label_list *list, char label_name[LINE_LENGTH], int *error, int DC)
+            if (strcmp(first_word, ".extern") == 0) {
+                // 10
+                insert_to_label(the_label_list, second_word, "external", &exists_error, 0);
+            }
         }
         else { // instruction without label ! // this means that first word has to be a known instruction
+            unsigned short line_binary_representation;
+            int dest_mion = 0;
+            int source_mion = 0;
             int L = 0;
+            int is_immediate = 0;
             if (exists_label) {
                 insert_to_label(the_label_list, first_word, "code", &exists_error, IC); // 11
                 if (is_instruction(second_word, IC, &exists_error)) { // 12
@@ -406,8 +455,10 @@ int main() {
                         forth_word = strtok(NULL, ",");
                         // printf("splitted here %s", forth_word);
                     }
-                    L = analyze_operands(second_word, third_word, forth_word, &exists_error,
-                        IC);
+                    L = analyze_operands(second_word, third_word, forth_word, &dest_mion,
+                        &source_mion, &exists_error,IC); // 13
+                    line_binary_representation = make_binary_line(second_word, &dest_mion,
+                        &source_mion); // 14
                 }
             }
             else if (is_instruction(first_word, IC, &exists_error)) { // 12
@@ -417,10 +468,12 @@ int main() {
                     second_word = strtok(copy_second, ",");
                     third_word = strtok(NULL, ",");
                 }
-                L = analyze_operands(first_word, second_word, third_word, &exists_error, IC);
-                printf("total words for line %d: %d\n", IC, L);
+                L = analyze_operands(first_word, second_word, third_word, &dest_mion,
+                    &source_mion, &exists_error, IC); // 13
+                line_binary_representation = make_binary_line(first_word, &dest_mion,
+                        &source_mion); // 14
+                // printf("total words for line %d: %d\n", IC, L);
             }
-
         }
 
     IC++;

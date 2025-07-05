@@ -7,6 +7,7 @@
 
 #define LINE_LENGTH 81
 
+
 typedef struct Linked_List {
     char instruction[LINE_LENGTH];
     struct Linked_List* next_instruction;

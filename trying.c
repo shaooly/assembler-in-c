@@ -8,6 +8,12 @@
 #include "preasm.h"
 
 
+
 int main() {
-    printf("hello world\n");
+    unsigned short dest_type = 1 << 3;
+    unsigned short source_type = 1 << 5;
+    unsigned short opcode = 10 << 6;
+    unsigned short final_bit = opcode | dest_type | source_type;
+    printf("%d", final_bit);
+
 }
