@@ -1,5 +1,8 @@
 MAIN:	mov M1[r2][r7],LENGTH
 add r2,STR
+add r2, r1
+		sub r1, , r4
+
 LOOP:	jmp END
 		prn #-5
 		mcro my_mcro
@@ -8,9 +11,11 @@ LOOP:	jmp END
 		mcroend
 		mcro bruh
 		mov sssaada
+		stop
+		rts
 		bne koa
 		mcroend
-		sub r1, r4
+		sub r1,, r4
 		inc K
 		bruh
 		my_mcro

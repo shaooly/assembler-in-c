@@ -172,6 +172,7 @@ int main(void) {
                 }
             }
             else {
+                printf("hi i'm here %s\n", first_word);
                 fprintf(post_pre_asm, line);
             }
         }
