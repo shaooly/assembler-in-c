@@ -6,6 +6,8 @@
 #include <unistd.h>
 #include <ctype.h>
 #include <math.h>
+#include "secondpassage.h"
+#include "firstpassage.h"
 
 #include "preasm.h"
 
@@ -18,24 +20,6 @@
 #define DEST_PADDING 2
 #define IMMEDIATE_PADDING 2
 
-
-
-extern macro_Linked_list* macro_table;
-
-
-typedef struct label_list{
-    int value;
-    char label_type[30];
-    char label_name[LINE_LENGTH];
-    struct label_list* next_label;
-} label_list;
-
-typedef struct binary_line {
-    int L;
-    int IC;
-    unsigned short words[5];
-    struct binary_line *next;
-} binary_line;
 
 int name_valid(char *name, int IC, int *error) {
     const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne",
@@ -138,7 +122,7 @@ int is_data_storing(char first_word[LINE_LENGTH], char second_word[LINE_LENGTH])
 }
 
 
-void insert_to_label(label_list *list, char label_name[LINE_LENGTH], char label_type[LINE_LENGTH], int *error, int DC) {
+void insert_to_label(label_list *list, char label_name[LINE_LENGTH], char *label_type, int *error, int DC) {
     // check if label name is in the list yet
     // checking each time for the next one - so i could add it at the end
     label_list *tmp = list;
@@ -378,6 +362,7 @@ void print_binary(unsigned short number) {
         if (i == 2) {
             printf(" ");
         }
+        fflush(stdout);
 
     }
     printf("\n");
@@ -422,7 +407,7 @@ unsigned short make_binary_line(char *instruction, int *first_op_type, int *seco
     // in theory i would've liked to check if source operand is 00
     // but i also need to check the other one is not 00 too
     // because commands like stop and others have 00 in the source to
-    print_binary(final_bit);
+    // print_binary(final_bit);
 
     return final_bit;
 }
@@ -460,15 +445,42 @@ unsigned short make_word(char *operand) {
 }
 
 void analyze_and_build(int *L, unsigned short *line_binary_representation, unsigned short *immediate_word,
-    char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion, int *error, int IC) {
+    char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion, int *error, int IC,
+    binary_line **binary_list) {
     *L = analyze_operands(instruction, first_op, second_op, source_mion,
                             dest_mion, error, IC); // 13 dest and source nonsense fix it in the original function
     *line_binary_representation = make_binary_line(instruction, source_mion,
         dest_mion); // 14
-    if (first_op != NULL && first_op[0] == '#') {
-        *immediate_word = make_word(first_op);
+
+    // 15
+    binary_line* new_node = malloc(sizeof(binary_line));
+    new_node->IC = IC;
+    new_node->L = *L;
+    new_node->words[0] = *line_binary_representation;
+    int i;
+    for (i = 1; i < 5; i++) {
+        new_node->words[i] = 0;
     }
+
+    new_node->next = NULL;
+    if (first_op != NULL && first_op[0] == '#') {
+        printf("this is immidiate");
+        *immediate_word = make_word(first_op);
+        new_node->words[1] = *immediate_word;
+    }
+    if ((*binary_list)->IC == -1) { // if dummy node
+        **binary_list = *new_node; // workaround
+        free(new_node);
+
+    }
+    else {
+        (*binary_list)->next = new_node;
+        *binary_list = new_node;
+    }
+
 }
+
+
 
 int main() {
     int DC = 0;
@@ -477,9 +489,20 @@ int main() {
     int exists_label = 0;
     FILE *source_asm = fopen("postpre.asm", "r");
     label_list* the_label_list = malloc(sizeof(label_list));
+    binary_line* instructions_in_binary = malloc(sizeof(binary_line));
     // define empty head
     the_label_list->next_label = NULL;
     strcpy(the_label_list->label_name,"");
+
+    instructions_in_binary->IC = -1; // mark dummy node
+    instructions_in_binary->L = 0;
+    instructions_in_binary->next = NULL;
+    int w;
+    for (w = 0; w < 5; w++) {
+        instructions_in_binary->words[w] = 0;
+    }
+
+    binary_line *instructions_iter = instructions_in_binary;
 
     char line[LINE_LENGTH];
 
@@ -554,7 +577,7 @@ int main() {
                     char *forth_word = strtok(NULL, " \t\n");
                     if ((strcmp(second_word, "stop") == 0 || strcmp(second_word, "rts") == 0) && third_word == NULL) {
                         analyze_and_build(&L, &line_binary_representation, &immediate_word, second_word, third_word,
-                            forth_word, &source_mion, &dest_mion, &exists_error, IC);
+                            forth_word, &source_mion, &dest_mion, &exists_error, IC, &instructions_iter);
                     }
                     // 13
                     // a problem has arisen that i didn't take into consideration:
@@ -569,7 +592,7 @@ int main() {
                             forth_word = strtok(NULL, " ,");
                             // printf("splitted here %s", forth_word);
                             analyze_and_build(&L, &line_binary_representation,  &immediate_word, second_word, third_word,
-                                forth_word, &source_mion, &dest_mion, &exists_error, IC);
+                                forth_word, &source_mion, &dest_mion, &exists_error, IC, &instructions_iter);
                         }
                     }
 
@@ -578,7 +601,7 @@ int main() {
             else if (is_instruction(first_word, IC, &exists_error)) { // 12
                 if ((strcmp(first_word, "stop") == 0 || strcmp(first_word, "rts") == 0) && second_word == NULL) {
                     analyze_and_build(&L, &line_binary_representation, &immediate_word, first_word, second_word,
-                        third_word, &source_mion, &dest_mion, &exists_error, IC);
+                        third_word, &source_mion, &dest_mion, &exists_error, IC, &instructions_iter);
                 }
                 else {
                     if (third_word == NULL) {
@@ -588,7 +611,8 @@ int main() {
                         third_word = strtok(NULL, " ,");
                     }
                     analyze_and_build(&L, &line_binary_representation, &immediate_word, first_word, second_word,
-                                            third_word, &source_mion, &dest_mion, &exists_error, IC);
+                                            third_word, &source_mion, &dest_mion, &exists_error, IC, &instructions_iter);
+
                 }
             }
 
@@ -598,9 +622,6 @@ int main() {
     }
 
     fclose(source_asm);
-    int DCF = DC;
-    int ICF = IC;
-
     // free my boy
 
     while (the_label_list->next_label != NULL) {
@@ -610,9 +631,25 @@ int main() {
     }
     free(the_label_list);
 
-    if (exists_error) {
+    while (instructions_in_binary != NULL) {
+        binary_line *tmp = instructions_in_binary->next;
+        print_binary(instructions_in_binary->words[1]);
+        free(instructions_in_binary);
+        instructions_in_binary = tmp;
+    }
+    free(instructions_in_binary);
+
+    if (exists_error) { // 17
         fclose(source_asm);
         exit(1);
     }
+
+    int DCF = DC;
+    int ICF = IC;
+
+    // second_pass_start(77);
+
+
+
     return 0;
 }

@@ -67,6 +67,12 @@ build CMakeFiles/untitled2.dir/firstpassage.c.obj: C_COMPILER__untitled2_unscann
   OBJECT_DIR = CMakeFiles\untitled2.dir
   OBJECT_FILE_DIR = CMakeFiles\untitled2.dir
 
+build CMakeFiles/untitled2.dir/secondpassage.c.obj: C_COMPILER__untitled2_unscanned_Debug C$:/Users/Shauli/CLionProjects/untitled2/secondpassage.c || cmake_object_order_depends_target_untitled2
+  DEP_FILE = CMakeFiles\untitled2.dir\secondpassage.c.obj.d
+  FLAGS = -g -std=gnu90 -fdiagnostics-color=always
+  OBJECT_DIR = CMakeFiles\untitled2.dir
+  OBJECT_FILE_DIR = CMakeFiles\untitled2.dir
+
 
 # =============================================================================
 # Link build statements for EXECUTABLE target untitled2
@@ -75,7 +81,7 @@ build CMakeFiles/untitled2.dir/firstpassage.c.obj: C_COMPILER__untitled2_unscann
 #############################################
 # Link the executable untitled2.exe
 
-build untitled2.exe: C_EXECUTABLE_LINKER__untitled2_Debug CMakeFiles/untitled2.dir/preasm.c.obj CMakeFiles/untitled2.dir/trying.c.obj CMakeFiles/untitled2.dir/firstpassage.c.obj
+build untitled2.exe: C_EXECUTABLE_LINKER__untitled2_Debug CMakeFiles/untitled2.dir/preasm.c.obj CMakeFiles/untitled2.dir/trying.c.obj CMakeFiles/untitled2.dir/firstpassage.c.obj CMakeFiles/untitled2.dir/secondpassage.c.obj
   FLAGS = -g
   LINK_LIBRARIES = -lkernel32 -luser32 -lgdi32 -lwinspool -lshell32 -lole32 -loleaut32 -luuid -lcomdlg32 -ladvapi32
   OBJECT_DIR = CMakeFiles\untitled2.dir
