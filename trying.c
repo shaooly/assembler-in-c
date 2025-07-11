@@ -8,6 +8,13 @@
 #include "preasm.h"
 #include <math.h>
 
+void analyze_and_build(int *L, unsigned short *line_binary_representation, char *instruction, char *first_op,
+    char *second_op, int *source_mion, int *dest_mion, int *error, int IC) {
+    *L = analyze_operands(instruction, first_op, second_op, dest_mion,
+                            source_mion, error, IC); // 13 dest and source nonsense fix it in the original function
+    *line_binary_representation = make_binary_line(instruction, source_mion,
+        dest_mion); // 14
+}
 
 
 int main() {

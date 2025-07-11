@@ -16,6 +16,8 @@
 #define OPCODE_PADDING 6
 #define SOURCE_PADDING 4
 #define DEST_PADDING 2
+#define IMMEDIATE_PADDING 2
+
 
 
 extern macro_Linked_list* macro_table;
@@ -46,7 +48,7 @@ int name_valid(char *name, int IC, int *error) {
         return 0;
     }
     if (isalpha(name[0]) == 0) {
-        fprintf(stderr, "Error in line %d. The first char in label name is a number.\n", IC);
+        fprintf(stderr, "Error in line %d. The first char in name is a number.\n", IC);
         *error = 1;
         return 0;
 
@@ -204,8 +206,6 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int IC) {
             // + and - signs give false positive so account for these tooooooooooooooo
             else if ((full_data[i] < '0' || full_data[i] > '9') && full_data[i] != '+' && full_data[i] != '-') {
                 *error = 1;
-
-
                 fprintf(stderr, "You have something that isn't a number in line %d", IC);
             }
         i++;
@@ -233,6 +233,16 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int IC) {
         if (sscanf(full_data, "[%d][%d]", &first_number, &second_number) == 2) {
             word_count += first_number * second_number;
         }
+        for (i = 0; i<strlen(full_data); i++) {
+            if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
+                    (full_data[i] == ',' && i == 0) || // psik the first
+                    (full_data[i] == ',' && i + 1 == strlen(full_data)) // psik the last :O
+                    ) {
+                *error = 1;
+                fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", IC);
+                return;
+                    }
+        }
         // printf("I would've added %d words\n", word_count);
     }
 
@@ -241,6 +251,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int IC) {
 }
 
 int is_number(char *word) {
+    int num_count = 0; // how many numbers are there
     int i = 1; // start from one because of #
     if (word[1] == '+' || word[1] == '-') { // if - or + ignore
         i = 2;
@@ -250,8 +261,9 @@ int is_number(char *word) {
             return 0;
         }
         i++;
+        num_count++;
     }
-    return 1;
+    return num_count;
 }
 
 int is_register_range(char num) { // i can do one liner but nah not readable
@@ -314,29 +326,61 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
     // in this case, the first operand is not a matrix, direct, or register.
     // there are two possible scenarios - it's a label or it's junk
     // for now, let's assume it's a label and in the second maavar we will check if it's ok or not
-    else {
+    else if (name_valid(operand, IC, error)){
         //printf("line number %d added 1 words\n", IC);
         *operand_type = DIRECT_CODE;
         return 1;; // in the case of a label
     }
+    else {
+        *error = 1;
+        fprintf(stderr, "bad operand");
+    }
 }
 
-int analyze_operands(char *instruction, char *first_op, char *second_op, int *dest_mion, int *source_mion,
+int analyze_operands(char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion,
     int *error, int IC) {
-        int L = 1;
-        int register_flag = 0; // because we want to make sure we only add one word for registers (in case there are two)
+    int L = 1;
+    int register_flag = 0; // because we want to make sure we only add one word for registers (in case there are two)
 
-        // check first operand:
-        if (first_op) {
-            printf("first operand is %s", first_op);
-            L += words_per_operand(first_op, source_mion, error, &register_flag, IC);
-        }
-        if (second_op) {
-            printf("second operand is %s", second_op);
-            L += words_per_operand(second_op, dest_mion, error, &register_flag, IC);
-        }
+    // if command with one op
+    if (!second_op) {
+        source_mion = dest_mion;
+    }
+    // check first operand:
+    if (first_op) {
+        //printf("first operand is %s ", first_op);
+        L += words_per_operand(first_op, source_mion, error, &register_flag, IC);
+        //printf("first mioon is: %d", *source_mion);
+    }
+
+    if (second_op) {
+        //printf("second operand is %s", second_op);
+        L += words_per_operand(second_op, dest_mion, error, &register_flag, IC);
+        //printf("second mioon is: %d", *dest_mion);
+    }
 
     return L;
+
+}
+
+void print_binary(unsigned short number) {
+    int i;
+
+    for (i = 9; i>=0; i--) {
+        printf("%d", number & 1 << i ? 1 : 0);
+
+        if (i == 6) {
+            printf(" ");
+        }
+        if (i == 4) {
+            printf(" ");
+        }
+        if (i == 2) {
+            printf(" ");
+        }
+
+    }
+    printf("\n");
 
 }
 
@@ -375,8 +419,55 @@ unsigned short make_binary_line(char *instruction, int *first_op_type, int *seco
     // 1001 00 01 00
 
     // handle first word in case of direct addressing
+    // in theory i would've liked to check if source operand is 00
+    // but i also need to check the other one is not 00 too
+    // because commands like stop and others have 00 in the source to
+    print_binary(final_bit);
 
+    return final_bit;
+}
 
+unsigned short make_word(char *operand) {
+    unsigned short sum = 0;
+    int is_negative = 1;
+    int i = 1; // start from the second number
+    if (operand[1] == '-') {
+        is_negative = -1;
+        i++;
+    }
+    if (operand[1] == '+') {
+        i++;
+    }
+    while (operand[i] != '\0') {
+        sum *= 10;
+        sum += operand[i] - '0';
+        i++;
+    }
+    sum *= is_negative;
+    // make it fit 10 bits for the word
+    if (is_negative == -1) {
+        sum = sum << IMMEDIATE_PADDING;
+        // & it with 0's in the 15-10th position (in case of negative)
+        // so i need 0000001111111111 to zero-out all the 15-10 bits
+        // in hex it's 3FF
+        sum = sum & 0x3FF;
+    }
+    else {
+        sum = sum << IMMEDIATE_PADDING;
+    }
+
+    return sum;
+}
+
+void analyze_and_build(int *L, unsigned short *line_binary_representation, unsigned short *immediate_word,
+    char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion, int *error, int IC) {
+    *L = analyze_operands(instruction, first_op, second_op, source_mion,
+                            dest_mion, error, IC); // 13 dest and source nonsense fix it in the original function
+    *line_binary_representation = make_binary_line(instruction, source_mion,
+        dest_mion); // 14
+    if (first_op != NULL && first_op[0] == '#') {
+        *immediate_word = make_word(first_op);
+    }
 }
 
 int main() {
@@ -404,7 +495,7 @@ int main() {
             second_word = strtok(NULL, "");
         }
         else {
-            second_word = strtok(NULL, " \t\n");
+            second_word = strtok(NULL, " ,\t\n");
         }
         char *third_word = 0;
         if (second_word) {
@@ -451,6 +542,7 @@ int main() {
         }
         else { // instruction without label ! // this means that first word has to be a known instruction
             unsigned short line_binary_representation;
+            unsigned short immediate_word;
             int dest_mion = 0;
             int source_mion = 0;
             int L = 0;
@@ -461,10 +553,8 @@ int main() {
                     // check for stop or rts
                     char *forth_word = strtok(NULL, " \t\n");
                     if ((strcmp(second_word, "stop") == 0 || strcmp(second_word, "rts") == 0) && third_word == NULL) {
-                        L = analyze_operands(second_word, third_word, forth_word, &dest_mion,
-                            &source_mion, &exists_error,IC); // 13
-                        line_binary_representation = make_binary_line(second_word, &dest_mion,
-                            &source_mion); // 14
+                        analyze_and_build(&L, &line_binary_representation, &immediate_word, second_word, third_word,
+                            forth_word, &source_mion, &dest_mion, &exists_error, IC);
                     }
                     // 13
                     // a problem has arisen that i didn't take into consideration:
@@ -475,13 +565,11 @@ int main() {
                         if (forth_word == NULL) {
                             char copy_third[LINE_LENGTH]; // in case no space between the psikim
                             strncpy(copy_third, third_word,LINE_LENGTH);
-                            third_word = strtok(copy_third, ",");
-                            forth_word = strtok(NULL, ",");
+                            third_word = strtok(copy_third, " ,");
+                            forth_word = strtok(NULL, " ,");
                             // printf("splitted here %s", forth_word);
-                        L = analyze_operands(second_word, third_word, forth_word, &dest_mion,
-                        &source_mion, &exists_error,IC); // 13
-                        line_binary_representation = make_binary_line(second_word, &dest_mion,
-                            &source_mion); // 14
+                            analyze_and_build(&L, &line_binary_representation,  &immediate_word, second_word, third_word,
+                                forth_word, &source_mion, &dest_mion, &exists_error, IC);
                         }
                     }
 
@@ -489,27 +577,19 @@ int main() {
             }
             else if (is_instruction(first_word, IC, &exists_error)) { // 12
                 if ((strcmp(first_word, "stop") == 0 || strcmp(first_word, "rts") == 0) && second_word == NULL) {
-                    L = analyze_operands(first_word, second_word, third_word, &dest_mion,
-                    &source_mion, &exists_error, IC); // 13
-                    line_binary_representation = make_binary_line(first_word, &dest_mion,
-                            &source_mion); // 14
+                    analyze_and_build(&L, &line_binary_representation, &immediate_word, first_word, second_word,
+                        third_word, &source_mion, &dest_mion, &exists_error, IC);
                 }
                 else {
                     if (third_word == NULL) {
                         char copy_second[LINE_LENGTH]; // in case no space between the psikim
                         strncpy(copy_second, second_word,LINE_LENGTH);
-                        second_word = strtok(copy_second, ",");
-                        third_word = strtok(NULL, ",");
+                        second_word = strtok(copy_second, " ,");
+                        third_word = strtok(NULL, " ,");
                     }
-                    L = analyze_operands(first_word, second_word, third_word, &dest_mion,
-                    &source_mion, &exists_error, IC); // 13
-                    line_binary_representation = make_binary_line(first_word, &dest_mion,
-                            &source_mion); // 14
-                    // printf("total words for line %d: %d\n", IC, L);
-
+                    analyze_and_build(&L, &line_binary_representation, &immediate_word, first_word, second_word,
+                                            third_word, &source_mion, &dest_mion, &exists_error, IC);
                 }
-
-
             }
 
         }
