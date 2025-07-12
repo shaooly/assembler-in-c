@@ -21,18 +21,18 @@
 #define IMMEDIATE_PADDING 2
 
 
-int name_valid(char *name, int IC, int *error) {
+int name_valid(char *name, int LC, int *error) {
     const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne",
         "jsr", "red", "prn", "rts", "stop", "mcro", "mcroend"};
 
     if (strlen(name) > 30) {
-        fprintf(stderr, "Error in line %d. The label name is longer than 30 chars.\n", IC);
+        fprintf(stderr, "Error in line %d. The label name is longer than 30 chars.\n", LC);
         *error = 1;
 
         return 0;
     }
     if (isalpha(name[0]) == 0) {
-        fprintf(stderr, "Error in line %d. The first char in name is a number.\n", IC);
+        fprintf(stderr, "Error in line %d. The first char in name is a number.\n", LC);
         *error = 1;
         return 0;
 
@@ -42,7 +42,7 @@ int name_valid(char *name, int IC, int *error) {
         if (isalnum(name[i]) == 0 && name[i] != '_') {
             if (name[i] == ':' && name[i+1] != '\0') { // check if dots are in the name not in the last positon of name
                 fprintf(stderr, "Error in line %d. The char in the %dth position in macro name is not alphanumeric.\n"
-                    , IC, i);
+                    , LC, i);
                 *error = 1;
                 return 0;
             }
@@ -54,7 +54,7 @@ int name_valid(char *name, int IC, int *error) {
     }
     for (i = 0; i < 18; i++) {
         if (strcmp(name, known_instructions[i]) == 0) { // if macro name is known instruction name.
-            fprintf(stderr, "Error in line %d. The macro name is a known instruction name (%s).", IC,
+            fprintf(stderr, "Error in line %d. The macro name is a known instruction name (%s).", LC,
                 known_instructions[i]);
             *error = 1;
             return 0;
@@ -64,12 +64,12 @@ int name_valid(char *name, int IC, int *error) {
 }
 
 // remember to add more checks !!!
-int is_symbol(char first_word[LINE_LENGTH], int *weird_flag, int IC, int *error) {
+int is_symbol(char first_word[LINE_LENGTH], int *weird_flag, int LC, int *error) {
 
     char *possible_instructions[5] = {".data", ".string", ".mat", ".entry", ".extern"};
 
     if (first_word[strlen(first_word) - 1] == ':') {
-        if (name_valid(first_word, IC, error)) {
+        if (name_valid(first_word, LC, error)) {
             return 1;
         }
     }
@@ -85,7 +85,7 @@ int is_symbol(char first_word[LINE_LENGTH], int *weird_flag, int IC, int *error)
 
 }
 
-int is_instruction(char first_word[LINE_LENGTH], int IC, int *error) {
+int is_instruction(char first_word[LINE_LENGTH], int LC, int *error) {
     const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne", "jsr",
         "red", "prn", "rts", "stop", "mcro", "mcroend"};
 
@@ -95,7 +95,7 @@ int is_instruction(char first_word[LINE_LENGTH], int IC, int *error) {
             return 1;
         }
     }
-    fprintf(stderr, "Error: unknown instruction '%s' in line %d. \n", first_word, IC);
+    fprintf(stderr, "Error: unknown instruction '%s' in line %d. \n", first_word, LC);
     *error = 1;
     return 0;
 
@@ -149,7 +149,7 @@ void insert_to_label(label_list *list, char label_name[LINE_LENGTH], char *label
     *error = 1;
 }
 
-void identify_data(char *data_type, char *data, int *DC, int *error, int IC) {
+void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
     char full_data[LINE_LENGTH] = "";
 
     if (strcmp(data_type, ".string") != 0) {
@@ -175,7 +175,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int IC) {
                 (full_data[i] == ',' && i + 1 == strlen(full_data)) // psik the last :O
                 ) {
                 *error = 1;
-                fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", IC);
+                fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", LC);
                 return;
             }
             if (full_data[i] == ',') { // new number and we know not two psikim next to each other
@@ -184,13 +184,13 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int IC) {
             // make sure the plus sign only appears next to a number or at the start of the expression :)
             else if ((full_data[i] == '+' || full_data[i] == '-') && full_data[i - 1] != ',' && i != 0) {
                 *error = 1;
-                fprintf(stderr, "You have a sign at a bad place :( at line %d\n", IC);
+                fprintf(stderr, "You have a sign at a bad place :( at line %d\n", LC);
             }
             // check if all are numbers
             // + and - signs give false positive so account for these tooooooooooooooo
             else if ((full_data[i] < '0' || full_data[i] > '9') && full_data[i] != '+' && full_data[i] != '-') {
                 *error = 1;
-                fprintf(stderr, "You have something that isn't a number in line %d", IC);
+                fprintf(stderr, "You have something that isn't a number in line %d", LC);
             }
         i++;
         }
@@ -223,7 +223,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int IC) {
                     (full_data[i] == ',' && i + 1 == strlen(full_data)) // psik the last :O
                     ) {
                 *error = 1;
-                fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", IC);
+                fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", LC);
                 return;
                     }
         }
@@ -278,42 +278,43 @@ int analyze_matrix(char *op) {
 // and then i'm going to do some ifs to check ifs to check which case is happening and
 // and add to L accordingly.
 
-int words_per_operand(char *operand, int *operand_type, int *error, int *register_flag, int IC) {
+int words_per_operand(char *operand, int *operand_type, int *error, int *register_flag, int LC) {
     // check if immediate
     // printf("the operand is %s\n", operand);
     if (operand[0] == '#') {
         if (is_number(operand)) {
-            //printf("line number %d added 1 word\n", IC);
+            //printf("line number %d added 1 word\n", LC);
             *operand_type = IMMEDIATE_CODE;
             return 1;
         }
         *error = 1;
         printf("hello: %s", operand);
 
-        fprintf(stderr, "You have something that isn't a number in line %d", IC);
+        fprintf(stderr, "You have something that isn't a number in line %d", LC);
     }
     // check if register
     else if (operand[0] == 'r' && is_register_range(operand[1])) {
-        if (!register_flag) {
+        if (*register_flag == 0) {
             *register_flag = 1;
-            //printf("line number %d added 1 word\n", IC);
+            *operand_type = REGISTER_CODE;
+            //printf("line number %d added 1 word\n", LC);
             return 1;
         }
         *operand_type = REGISTER_CODE;
         return 0;
     }
     else if (analyze_matrix(operand)) {
-        //printf("line number %d added 2 words\n", IC);
+        //printf("line number %d added 2 words\n", LC);
         *operand_type = MATRIX_CODE;
         return 2;
     }
     // in this case, the first operand is not a matrix, direct, or register.
     // there are two possible scenarios - it's a label or it's junk
     // for now, let's assume it's a label and in the second maavar we will check if it's ok or not
-    else if (name_valid(operand, IC, error)){
-        //printf("line number %d added 1 words\n", IC);
+    else if (name_valid(operand, LC, error)){
+        //printf("line number %d added 1 words\n", LC);
         *operand_type = DIRECT_CODE;
-        return 1;; // in the case of a label
+        return 1; // in the case of a label
     }
     else {
         *error = 1;
@@ -322,9 +323,9 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
 }
 
 int analyze_operands(char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion,
-    int *error, int IC) {
+    int *error, int LC) {
     int L = 1;
-    int register_flag = 0; // because we want to make sure we only add one word for registers (in case there are two)
+    int found_register = 0; // because we want to make sure we only add one word for registers (in case there are two)
 
     // if command with one op
     if (!second_op) {
@@ -332,16 +333,14 @@ int analyze_operands(char *instruction, char *first_op, char *second_op, int *so
     }
     // check first operand:
     if (first_op) {
-        //printf("first operand is %s ", first_op);
-        L += words_per_operand(first_op, source_mion, error, &register_flag, IC);
-        //printf("first mioon is: %d", *source_mion);
+        L += words_per_operand(first_op, source_mion, error, &found_register, LC);
+        printf("first operand is %s and took %d ", first_op, L);
     }
-
     if (second_op) {
-        //printf("second operand is %s", second_op);
-        L += words_per_operand(second_op, dest_mion, error, &register_flag, IC);
-        //printf("second mioon is: %d", *dest_mion);
+        L += words_per_operand(second_op, dest_mion, error, &found_register, LC);
+        printf("second operand is %s and took %d ", second_op, L);
     }
+    printf("total: %d\n", L);
 
     return L;
 
@@ -445,16 +444,16 @@ unsigned short make_word(char *operand) {
 }
 
 void analyze_and_build(int *L, unsigned short *line_binary_representation, unsigned short *immediate_word,
-    char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion, int *error, int IC,
+    char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion, int *error, int LC,
     binary_line **binary_list) {
     *L = analyze_operands(instruction, first_op, second_op, source_mion,
-                            dest_mion, error, IC); // 13 dest and source nonsense fix it in the original function
+                            dest_mion, error, LC); // 13 dest and source nonsense fix it in the original function
     *line_binary_representation = make_binary_line(instruction, source_mion,
         dest_mion); // 14
 
     // 15
     binary_line* new_node = malloc(sizeof(binary_line));
-    new_node->IC = IC;
+    new_node->LC = LC;
     new_node->L = *L;
     new_node->words[0] = *line_binary_representation;
     int i;
@@ -468,7 +467,7 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         *immediate_word = make_word(first_op);
         new_node->words[1] = *immediate_word;
     }
-    if ((*binary_list)->IC == -1) { // if dummy node
+    if ((*binary_list)->LC == -1) { // if dummy node
         **binary_list = *new_node; // workaround
         free(new_node);
 
@@ -484,7 +483,8 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
 
 int main() {
     int DC = 0;
-    int IC = 1;
+    int IC = 0;
+    int LC = 1; // line counter haha
     int exists_error = 0;
     int exists_label = 0;
     FILE *source_asm = fopen("postpre.asm", "r");
@@ -494,7 +494,7 @@ int main() {
     the_label_list->next_label = NULL;
     strcpy(the_label_list->label_name,"");
 
-    instructions_in_binary->IC = -1; // mark dummy node
+    instructions_in_binary->LC = -1; // mark dummy node
     instructions_in_binary->L = 0;
     instructions_in_binary->next = NULL;
     int w;
@@ -536,23 +536,23 @@ int main() {
         // but i guess i should take care of it too no?
         int weird_symbol_flag = 0; // in case there is a "weird" symbol (data wasting space for example .data)
 
-        exists_label = is_symbol(first_word, &weird_symbol_flag, IC, &exists_error);
+        exists_label = is_symbol(first_word, &weird_symbol_flag, LC, &exists_error);
         if (is_data_storing(first_word, second_word)) { // 5
             if (exists_label) {
                 // in the case that the decleration is only .data, we will call without the name (first_word)
                 insert_to_label(the_label_list, first_word, "data", &exists_error, DC); // 6
                 if (weird_symbol_flag) {
-                    identify_data(first_word, second_word, &DC, &exists_error, IC);
+                    identify_data(first_word, second_word, &DC, &exists_error, LC);
                 }
                 else {
-                    identify_data(second_word, third_word, &DC, &exists_error, IC); // 7
+                    identify_data(second_word, third_word, &DC, &exists_error, LC); // 7
                 }
             }
         }
         // non-data (entry and extern) are always weird flag cases
         else if (weird_symbol_flag) { // if not data (line 8 // actually it is always here no need
             if (strcmp(first_word, ".entry") == 0) { // 9
-                IC++;
+                LC++;
                 continue;
             }
             // if i was arrogant i would've left this if out of the code because if it reached here
@@ -571,13 +571,13 @@ int main() {
             int L = 0;
 
             if (exists_label) {
-                insert_to_label(the_label_list, first_word, "code", &exists_error, IC); // 11
-                if (is_instruction(second_word, IC, &exists_error)) { // 12
+                insert_to_label(the_label_list, first_word, "code", &exists_error, LC); // 11
+                if (is_instruction(second_word, LC, &exists_error)) { // 12
                     // check for stop or rts
                     char *forth_word = strtok(NULL, " \t\n");
                     if ((strcmp(second_word, "stop") == 0 || strcmp(second_word, "rts") == 0) && third_word == NULL) {
                         analyze_and_build(&L, &line_binary_representation, &immediate_word, second_word, third_word,
-                            forth_word, &source_mion, &dest_mion, &exists_error, IC, &instructions_iter);
+                            forth_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter);
                     }
                     // 13
                     // a problem has arisen that i didn't take into consideration:
@@ -592,16 +592,16 @@ int main() {
                             forth_word = strtok(NULL, " ,");
                             // printf("splitted here %s", forth_word);
                             analyze_and_build(&L, &line_binary_representation,  &immediate_word, second_word, third_word,
-                                forth_word, &source_mion, &dest_mion, &exists_error, IC, &instructions_iter);
+                                forth_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter);
                         }
                     }
 
                 }
             }
-            else if (is_instruction(first_word, IC, &exists_error)) { // 12
+            else if (is_instruction(first_word, LC, &exists_error)) { // 12
                 if ((strcmp(first_word, "stop") == 0 || strcmp(first_word, "rts") == 0) && second_word == NULL) {
                     analyze_and_build(&L, &line_binary_representation, &immediate_word, first_word, second_word,
-                        third_word, &source_mion, &dest_mion, &exists_error, IC, &instructions_iter);
+                        third_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter);
                 }
                 else {
                     if (third_word == NULL) {
@@ -611,14 +611,18 @@ int main() {
                         third_word = strtok(NULL, " ,");
                     }
                     analyze_and_build(&L, &line_binary_representation, &immediate_word, first_word, second_word,
-                                            third_word, &source_mion, &dest_mion, &exists_error, IC, &instructions_iter);
+                                            third_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter);
 
                 }
             }
-
+            // else {
+            //
+            // }
+            DC += L;
+            // printf("the line: %s took %d words making the final word count %d", line, L, DC);
         }
 
-    IC++;
+    LC++;
     }
 
     fclose(source_asm);
@@ -633,7 +637,7 @@ int main() {
 
     while (instructions_in_binary != NULL) {
         binary_line *tmp = instructions_in_binary->next;
-        print_binary(instructions_in_binary->words[1]);
+        print_binary(instructions_in_binary->words[0]);
         free(instructions_in_binary);
         instructions_in_binary = tmp;
     }

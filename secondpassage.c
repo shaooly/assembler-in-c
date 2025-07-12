@@ -5,7 +5,7 @@
 #include "secondpassage.h"
 #include "firstpassage.h"
 
-int second_pass_start(int x) {
+int second_pass_start(binary_line instructions_in_binary, ) {
     printf("%d\n", x);
     return 0;
 }

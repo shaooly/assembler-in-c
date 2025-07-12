@@ -16,7 +16,7 @@ typedef struct label_list{
 
 typedef struct binary_line {
     int L;
-    int IC;
+    int LC;
     unsigned short words[5];
     struct binary_line *next;
 } binary_line;

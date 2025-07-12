@@ -14,7 +14,7 @@
 		prn r1
 		rts
 		stop
-MAIN:	mov M1[r2][r7],LENGTH
+MAIN:	mov M1[r2][r7],M1[r2][r7]
 add r2,STR
 add r2, r1
 		sub r1, r4
