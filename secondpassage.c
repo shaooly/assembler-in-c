@@ -5,8 +5,19 @@
 #include "secondpassage.h"
 #include "firstpassage.h"
 
-int second_pass_start(binary_line instructions_in_binary, ) {
-    printf("%d\n", x);
+int main() {
+    int exists_error = 0;
+    FILE *source_asm = fopen("postpre.asm", "r");
+
+    char line[LINE_LENGTH];
+
+    while (fgets(line, LINE_LENGTH, source_asm) && !exists_error) {
+        printf("%s", line);
+        if (line[0] == '\n') {
+            printf("hi");
+        }
+    }
     return 0;
 }
+
 

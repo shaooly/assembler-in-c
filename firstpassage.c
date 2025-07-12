@@ -20,6 +20,12 @@
 #define DEST_PADDING 2
 #define IMMEDIATE_PADDING 2
 
+#define ROW_REGISTER_PADDING_FOR_MATRIX 6
+#define COLUMN_REGISTER_PADDING_FOR_MATRIX 2
+
+#define REGISTER_SOURCE_PADDING 6
+#define REGISTER_DEST_PADDING 2
+
 
 int name_valid(char *name, int LC, int *error) {
     const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne",
@@ -169,6 +175,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
     int word_count = 0;
     if (strcmp(data_type, ".data") == 0) { // if contaings numbers and such
         word_count++; // counting the commas, so there will always be n - 1 commas
+
         while (i < strlen(full_data)) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
@@ -210,6 +217,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             word_count += i - 1; // minus two quotes + '\0'
             // printf("I would've added %d words\n", word_count);
         }
+
     }
     if (strcmp(data_type, ".mat") == 0) {
         int first_number;
@@ -257,11 +265,8 @@ int is_register_range(char num) { // i can do one liner but nah not readable
     return 1;
 }
 
-int analyze_matrix(char *op) {
+int analyze_matrix(char *op, char *first_bracket, char *second_bracket) {
     char matrix_label_name[LINE_LENGTH];
-    char first_bracket[LINE_LENGTH];
-    char second_bracket[LINE_LENGTH];
-
     if (sscanf(op, "%[^[][%[^]]][%[^]]]", matrix_label_name, first_bracket, second_bracket) == 3) {
         return 1;
         // leaving this here for later
@@ -281,6 +286,7 @@ int analyze_matrix(char *op) {
 int words_per_operand(char *operand, int *operand_type, int *error, int *register_flag, int LC) {
     // check if immediate
     // printf("the operand is %s\n", operand);
+    char filler[LINE_LENGTH];
     if (operand[0] == '#') {
         if (is_number(operand)) {
             //printf("line number %d added 1 word\n", LC);
@@ -303,7 +309,8 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
         *operand_type = REGISTER_CODE;
         return 0;
     }
-    else if (analyze_matrix(operand)) {
+    // using fillers for the anlyze matrix function
+    else if (analyze_matrix(operand, filler, filler)) { // idk if this is common c practice
         //printf("line number %d added 2 words\n", LC);
         *operand_type = MATRIX_CODE;
         return 2;
@@ -319,6 +326,7 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
     else {
         *error = 1;
         fprintf(stderr, "bad operand");
+        return 0;
     }
 }
 
@@ -334,13 +342,13 @@ int analyze_operands(char *instruction, char *first_op, char *second_op, int *so
     // check first operand:
     if (first_op) {
         L += words_per_operand(first_op, source_mion, error, &found_register, LC);
-        printf("first operand is %s and took %d ", first_op, L);
+        //printf("first operand is %s and took %d ", first_op, L);
     }
     if (second_op) {
         L += words_per_operand(second_op, dest_mion, error, &found_register, LC);
-        printf("second operand is %s and took %d ", second_op, L);
+        //printf("second operand is %s and took %d ", second_op, L);
     }
-    printf("total: %d\n", L);
+    // printf("total: %d\n", L);
 
     return L;
 
@@ -353,18 +361,17 @@ void print_binary(unsigned short number) {
         printf("%d", number & 1 << i ? 1 : 0);
 
         if (i == 6) {
-            printf(" ");
+            printf("-");
         }
         if (i == 4) {
-            printf(" ");
+            printf("-");
         }
         if (i == 2) {
-            printf(" ");
+            printf("-");
         }
-        fflush(stdout);
 
     }
-    printf("\n");
+    printf(" ");
 
 }
 
@@ -443,9 +450,27 @@ unsigned short make_word(char *operand) {
     return sum;
 }
 
+unsigned short make_matrix_word(char *first_bracket, char *second_bracket) {
+    // 6-9 = shoora
+    // 5-2 = amooda
+    int row = first_bracket[1] - '0';
+    int column = second_bracket[1] - '0';
+
+    // format it to 6-9, 5-2
+    row = row << ROW_REGISTER_PADDING_FOR_MATRIX;
+    column = column << COLUMN_REGISTER_PADDING_FOR_MATRIX;
+
+    unsigned short final_bit = row | column;
+    return final_bit;
+}
+
 void analyze_and_build(int *L, unsigned short *line_binary_representation, unsigned short *immediate_word,
     char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion, int *error, int LC,
     binary_line **binary_list) {
+    char first_bracket[LINE_LENGTH];
+    char second_bracket[LINE_LENGTH];
+    int source_r_number = 0;
+    int dest_r_number = 0;
     *L = analyze_operands(instruction, first_op, second_op, source_mion,
                             dest_mion, error, LC); // 13 dest and source nonsense fix it in the original function
     *line_binary_representation = make_binary_line(instruction, source_mion,
@@ -460,13 +485,52 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
     for (i = 1; i < 5; i++) {
         new_node->words[i] = 0;
     }
-
+    // if immidiate
     new_node->next = NULL;
     if (first_op != NULL && first_op[0] == '#') {
-        printf("this is immidiate");
+        // printf("this is immidiate\n");
         *immediate_word = make_word(first_op);
         new_node->words[1] = *immediate_word;
     }
+
+    if (*source_mion == 2) {
+        analyze_matrix(first_op, first_bracket, second_bracket);
+        new_node->words[2] = make_matrix_word(first_bracket, second_bracket);
+    }
+    if (*dest_mion == 2) {
+        analyze_matrix(second_op, first_bracket, second_bracket);
+        unsigned short matrix_word = make_matrix_word(first_bracket, second_bracket);
+        if (*source_mion == 2) {
+            // words[0] is instruction, words[1-2] is the source matrix , words[3] is matrix and 4 is word
+            new_node->words[4] = matrix_word; // this means two matrixes
+        }
+        else { // if register or immediate
+            // words[0] is instruction, words[1] is the source (register or immediate), words[2] is matrix and 3 is word
+            new_node->words[3] = matrix_word;
+        }
+    }
+    if (first_op != NULL && *source_mion == 3) {
+        source_r_number = first_op[1] - '0';
+        // format it to 6-9
+        source_r_number = source_r_number << REGISTER_SOURCE_PADDING;
+        new_node->words[1] = source_r_number; //
+    }
+    if (second_op != NULL && *dest_mion == 3) {
+        dest_r_number = second_op[1] - '0';
+        // format it to 6-9
+        dest_r_number = dest_r_number << REGISTER_DEST_PADDING;
+        if (*source_mion == 0 || *source_mion == 1) {
+            new_node->words[2] = dest_r_number; // words[0] is instruction words[1] is immediate
+        }
+        else if (*source_mion == 2) { // if matrix
+            new_node->words[3] = dest_r_number; // 0 is instruction, 1 is matrix, 2 is matrix registers 3 is destiantion
+        }
+        else if (*source_mion == 3) {
+            new_node->words[1] = new_node->words[1] | dest_r_number; // same extra word
+        }
+    }
+
+
     if ((*binary_list)->LC == -1) { // if dummy node
         **binary_list = *new_node; // workaround
         free(new_node);
@@ -479,11 +543,33 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
 
 }
 
+void free_all(label_list *list, binary_line *line_to_free) {
+    while (list->next_label != NULL) {
+        label_list *tmp = list->next_label;
+        printf("%s | %d | %s\n", tmp->label_name, tmp->value, tmp->label_type);
+        free(list);
+        list = tmp;
+    }
+    free(list);
+
+    while (line_to_free != NULL) {
+        binary_line *tmp = line_to_free->next;
+        int i;
+        for (i = 0; i<5; i++) {
+            print_binary(line_to_free->words[i]);
+        }
+        printf("\n");
+        free(line_to_free);
+        line_to_free = tmp;
+    }
+    free(line_to_free);
+
+}
 
 
 int main() {
     int DC = 0;
-    int IC = 0;
+    int IC = 100;
     int LC = 1; // line counter haha
     int exists_error = 0;
     int exists_label = 0;
@@ -517,7 +603,7 @@ int main() {
         if (strcmp(first_word, ".string") == 0) { // this is only for the weird symbol case.
             second_word = strtok(NULL, "");
         }
-        else {
+        else { // jert
             second_word = strtok(NULL, " ,\t\n");
         }
         char *third_word = 0;
@@ -571,7 +657,7 @@ int main() {
             int L = 0;
 
             if (exists_label) {
-                insert_to_label(the_label_list, first_word, "code", &exists_error, LC); // 11
+                insert_to_label(the_label_list, first_word, "code", &exists_error, IC); // 11
                 if (is_instruction(second_word, LC, &exists_error)) { // 12
                     // check for stop or rts
                     char *forth_word = strtok(NULL, " \t\n");
@@ -618,7 +704,7 @@ int main() {
             // else {
             //
             // }
-            DC += L;
+            IC += L;
             // printf("the line: %s took %d words making the final word count %d", line, L, DC);
         }
 
@@ -628,20 +714,6 @@ int main() {
     fclose(source_asm);
     // free my boy
 
-    while (the_label_list->next_label != NULL) {
-        label_list *tmp = the_label_list->next_label;
-        free(the_label_list);
-        the_label_list = tmp;
-    }
-    free(the_label_list);
-
-    while (instructions_in_binary != NULL) {
-        binary_line *tmp = instructions_in_binary->next;
-        print_binary(instructions_in_binary->words[0]);
-        free(instructions_in_binary);
-        instructions_in_binary = tmp;
-    }
-    free(instructions_in_binary);
 
     if (exists_error) { // 17
         fclose(source_asm);
@@ -650,6 +722,20 @@ int main() {
 
     int DCF = DC;
     int ICF = IC;
+
+    label_list *tmp = the_label_list;
+
+
+    while (tmp != NULL) {
+        if (strcmp(tmp->label_type, "data") == 0) {
+            tmp->value = tmp->value + ICF;
+            // printf("hi! ium %s and take %d\n",tmp->label_name, tmp->value);
+        }
+        tmp = tmp->next_label;
+    }
+
+
+    free_all(the_label_list, instructions_in_binary);
 
     // second_pass_start(77);
 
