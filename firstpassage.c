@@ -26,6 +26,31 @@
 #define REGISTER_SOURCE_PADDING 6
 #define REGISTER_DEST_PADDING 2
 
+int memory_pointer = 0;  // define memory pointer probably will change it later
+unsigned short memory[256] = {0};
+
+
+void print_binary(unsigned short number) {
+    int i;
+
+    for (i = 9; i>=0; i--) {
+        printf("%d", number & 1 << i ? 1 : 0);
+
+        if (i == 6) {
+            printf("-");
+        }
+        if (i == 4) {
+            printf("-");
+        }
+        if (i == 2) {
+            printf("-");
+        }
+
+    }
+    printf(" ");
+
+}
+
 
 int name_valid(char *name, int LC, int *error) {
     const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne",
@@ -152,6 +177,7 @@ void insert_to_label(label_list *list, char label_name[LINE_LENGTH], char *label
         tmp->next_label = to_add;
         return;
     }
+    fprintf(stderr, "couldn't insert into error");
     *error = 1;
 }
 
@@ -173,10 +199,10 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
     }
     int i = 0;
     int word_count = 0;
+    int sign = 1;
+    int num = 0;
     if (strcmp(data_type, ".data") == 0) { // if contaings numbers and such
-        word_count++; // counting the commas, so there will always be n - 1 commas
-
-        while (i < strlen(full_data)) {
+        while (i < strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
                 (full_data[i] == ',' && i + 1 == strlen(full_data)) // psik the last :O
@@ -185,8 +211,13 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
                 fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", LC);
                 return;
             }
-            if (full_data[i] == ',') { // new number and we know not two psikim next to each other
+            // new number and we know not two psikim next to each other
+            if (full_data[i] == ',' || full_data[i] == '\0' || full_data[i] == '\n') {
+                memory[memory_pointer] = num * sign;
+                memory_pointer++;
                 word_count++; // new mila
+                sign = 1;
+                num = 0;
             }
             // make sure the plus sign only appears next to a number or at the start of the expression :)
             else if ((full_data[i] == '+' || full_data[i] == '-') && full_data[i - 1] != ',' && i != 0) {
@@ -199,6 +230,16 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
                 *error = 1;
                 fprintf(stderr, "You have something that isn't a number in line %d", LC);
             }
+            else if (full_data[i] == '-') {
+                sign = -1;
+            }
+            else if (full_data[i] == '+') {
+                sign = 1; // although it doesn't matter really
+            }
+            else {
+                num *= 10;
+                num += full_data[i] - '0';
+            }
         i++;
         }
     }
@@ -210,14 +251,19 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
         // without a name
         // for example .string "hello"
         while (full_data[i] != '\n' && full_data[i] != '\0') {
+            if (i != 0 && (full_data[i+1] != '\n' || full_data[i+1] != '\0')) {
+                // printf("added to memory: %d", (unsigned char)full_data[i]);
+                memory[memory_pointer] = (unsigned char)full_data[i];
+                memory_pointer++;
+            }
             i++;
         }
+        memory[memory_pointer - 1] = '\0';
         // now i is the length of the string so i-1 is supposed to be "
         if (full_data[0] == '"' && full_data[i-1] == '"') { // check if valid corners
             word_count += i - 1; // minus two quotes + '\0'
             // printf("I would've added %d words\n", word_count);
         }
-
     }
     if (strcmp(data_type, ".mat") == 0) {
         int first_number;
@@ -225,19 +271,50 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
         if (sscanf(full_data, "[%d][%d]", &first_number, &second_number) == 2) {
             word_count += first_number * second_number;
         }
-        for (i = 0; i<strlen(full_data); i++) {
+        i = 6;
+        while (i<strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
-                    (full_data[i] == ',' && i == 0) || // psik the first
-                    (full_data[i] == ',' && i + 1 == strlen(full_data)) // psik the last :O
-                    ) {
+                (full_data[i] == ',' && i == 0) || // psik the first
+                (full_data[i] == ',' && i + 1 == strlen(full_data)) // psik the last :O
+                ) {
                 *error = 1;
                 fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", LC);
                 return;
-                    }
+                }
+            // new number and we know not two psikim next to each other
+            if (full_data[i] == ',' || full_data[i] == '\0' || full_data[i] == '\n') {
+                memory[memory_pointer] = num * sign;
+                memory_pointer++;
+                word_count++; // new mila
+                sign = 1;
+                num = 0;
+            }
+            // make sure the plus sign only appears next to a number or at the start of the expression :)
+            else if ((full_data[i] == '+' || full_data[i] == '-') && full_data[i - 1] != ',' && i != 0) {
+                *error = 1;
+                fprintf(stderr, "You have a sign at a bad place :( at line %d\n", LC);
+            }
+            // check if all are numbers
+            // + and - signs give false positive so account for these tooooooooooooooo
+            else if ((full_data[i] < '0' || full_data[i] > '9') && full_data[i] != '+' && full_data[i] != '-') {
+                *error = 1;
+                fprintf(stderr, "You have something that isn't a number in line %d", LC);
+            }
+            else if (full_data[i] == '-') {
+                sign = -1;
+            }
+            else if (full_data[i] == '+') {
+                sign = 1; // although it doesn't matter really
+            }
+            else {
+                num *= 10;
+                num += full_data[i] - '0';
+            }
+            i++;
+
         }
         // printf("I would've added %d words\n", word_count);
     }
-
     //update DC
     *DC += word_count;
 }
@@ -265,14 +342,16 @@ int is_register_range(char num) { // i can do one liner but nah not readable
     return 1;
 }
 
-int analyze_matrix(char *op, char *first_bracket, char *second_bracket) {
+int analyze_matrix(char *op, char *first_bracket, char *second_bracket, int *error) {
     char matrix_label_name[LINE_LENGTH];
-    if (sscanf(op, "%[^[][%[^]]][%[^]]]", matrix_label_name, first_bracket, second_bracket) == 3) {
+    char junk[LINE_LENGTH];
+    // want to catch if there are stuff outside the matrix we don't want ! for example letters after the matrix and so on
+    int catch = sscanf(op, "%[^[][%[^]]][%[^]]]%s", matrix_label_name, first_bracket, second_bracket, junk);
+    if (catch == 3) {
         return 1;
-        // leaving this here for later
-        // printf("the name is: %s\n", matrix_label_name);
-        // printf("the first bracket is: %s\n", first_bracket);
-        // printf("the second bracket is: %s\n", second_bracket);
+    }
+    if (catch > 3) {
+        printf("caught");
     }
     return 0;
 }
@@ -295,11 +374,11 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
         }
         *error = 1;
         printf("hello: %s", operand);
-
         fprintf(stderr, "You have something that isn't a number in line %d", LC);
+        return 0;
     }
     // check if register
-    else if (operand[0] == 'r' && is_register_range(operand[1])) {
+    if (operand[0] == 'r' && is_register_range(operand[1])) {
         if (*register_flag == 0) {
             *register_flag = 1;
             *operand_type = REGISTER_CODE;
@@ -310,24 +389,23 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
         return 0;
     }
     // using fillers for the anlyze matrix function
-    else if (analyze_matrix(operand, filler, filler)) { // idk if this is common c practice
-        //printf("line number %d added 2 words\n", LC);
+    if (analyze_matrix(operand, filler, filler, error)) { // idk if this is common c practice
+        printf("we got a matrix named: %s\n", operand);
+
         *operand_type = MATRIX_CODE;
         return 2;
     }
     // in this case, the first operand is not a matrix, direct, or register.
     // there are two possible scenarios - it's a label or it's junk
     // for now, let's assume it's a label and in the second maavar we will check if it's ok or not
-    else if (name_valid(operand, LC, error)){
-        //printf("line number %d added 1 words\n", LC);
+    if (name_valid(operand, LC, error)){
+        printf("we got a label named: %s\n", operand);
         *operand_type = DIRECT_CODE;
         return 1; // in the case of a label
     }
-    else {
-        *error = 1;
-        fprintf(stderr, "bad operand");
-        return 0;
-    }
+    *error = 1;
+    fprintf(stderr, "bad operand");
+    return 0;
 }
 
 int analyze_operands(char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion,
@@ -354,26 +432,6 @@ int analyze_operands(char *instruction, char *first_op, char *second_op, int *so
 
 }
 
-void print_binary(unsigned short number) {
-    int i;
-
-    for (i = 9; i>=0; i--) {
-        printf("%d", number & 1 << i ? 1 : 0);
-
-        if (i == 6) {
-            printf("-");
-        }
-        if (i == 4) {
-            printf("-");
-        }
-        if (i == 2) {
-            printf("-");
-        }
-
-    }
-    printf(" ");
-
-}
 
 unsigned short make_binary_line(char *instruction, int *first_op_type, int *second_op_type) {
     // first analyze instruction
@@ -494,11 +552,11 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
     }
 
     if (*source_mion == 2) {
-        analyze_matrix(first_op, first_bracket, second_bracket);
+        analyze_matrix(first_op, first_bracket, second_bracket, error);
         new_node->words[2] = make_matrix_word(first_bracket, second_bracket);
     }
     if (*dest_mion == 2) {
-        analyze_matrix(second_op, first_bracket, second_bracket);
+        analyze_matrix(second_op, first_bracket, second_bracket, error);
         unsigned short matrix_word = make_matrix_word(first_bracket, second_bracket);
         if (*source_mion == 2) {
             // words[0] is instruction, words[1-2] is the source matrix , words[3] is matrix and 4 is word
@@ -544,14 +602,6 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
 }
 
 void free_all(label_list *list, binary_line *line_to_free) {
-    while (list->next_label != NULL) {
-        label_list *tmp = list->next_label;
-        printf("%s | %d | %s\n", tmp->label_name, tmp->value, tmp->label_type);
-        free(list);
-        list = tmp;
-    }
-    free(list);
-
     while (line_to_free != NULL) {
         binary_line *tmp = line_to_free->next;
         int i;
@@ -563,6 +613,14 @@ void free_all(label_list *list, binary_line *line_to_free) {
         line_to_free = tmp;
     }
     free(line_to_free);
+
+    while (list->next_label != NULL) {
+        label_list *tmp = list->next_label;
+        printf("%s | %d | %s\n", tmp->label_name, tmp->value, tmp->label_type);
+        free(list);
+        list = tmp;
+    }
+    free(list);
 
 }
 
@@ -660,7 +718,7 @@ int main() {
                 insert_to_label(the_label_list, first_word, "code", &exists_error, IC); // 11
                 if (is_instruction(second_word, LC, &exists_error)) { // 12
                     // check for stop or rts
-                    char *forth_word = strtok(NULL, " \t\n");
+                    char *forth_word = strtok(NULL, " ,\t\n");
                     if ((strcmp(second_word, "stop") == 0 || strcmp(second_word, "rts") == 0) && third_word == NULL) {
                         analyze_and_build(&L, &line_binary_representation, &immediate_word, second_word, third_word,
                             forth_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter);
@@ -736,7 +794,11 @@ int main() {
 
 
     free_all(the_label_list, instructions_in_binary);
-
+    int i;
+    for (i = 0; i < 15; i++) {
+        print_binary(memory[i]);
+        printf("\n");
+    }
     // second_pass_start(77);
 
 
