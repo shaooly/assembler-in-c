@@ -10,7 +10,7 @@
 #include "firstpassage.h"
 
 #include "preasm.h"
-
+// 1, 7
 #define IMMEDIATE_CODE 0
 #define DIRECT_CODE 1
 #define MATRIX_CODE 2
@@ -170,6 +170,8 @@ void insert_to_label(label_list *list, char label_name[LINE_LENGTH], char *label
     if (strcmp(label_name, tmp->label_name) != 0) {
         // insert into tmp the current label
         label_list *to_add = malloc(sizeof(label_list));
+        int label_name_length = strlen(label_name);
+        label_name[label_name_length-1] = '\0';
         strcpy(to_add->label_name, label_name);
         strcpy(to_add->label_type, label_type);
         to_add->value = DC;
@@ -348,6 +350,7 @@ int analyze_matrix(char *op, char *first_bracket, char *second_bracket, int *err
     // want to catch if there are stuff outside the matrix we don't want ! for example letters after the matrix and so on
     int catch = sscanf(op, "%[^[][%[^]]][%[^]]]%s", matrix_label_name, first_bracket, second_bracket, junk);
     if (catch == 3) {
+        strcpy(op, matrix_label_name);
         return 1;
     }
     if (catch > 3) {
@@ -389,9 +392,9 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
         return 0;
     }
     // using fillers for the anlyze matrix function
-    if (analyze_matrix(operand, filler, filler, error)) { // idk if this is common c practice
-        printf("we got a matrix named: %s\n", operand);
-
+    char matrix_tmp[LINE_LENGTH];
+    strcpy(matrix_tmp, operand);
+    if (analyze_matrix(matrix_tmp, filler, filler, error)) { // idk if this is common c practice
         *operand_type = MATRIX_CODE;
         return 2;
     }
@@ -399,7 +402,6 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
     // there are two possible scenarios - it's a label or it's junk
     // for now, let's assume it's a label and in the second maavar we will check if it's ok or not
     if (name_valid(operand, LC, error)){
-        printf("we got a label named: %s\n", operand);
         *operand_type = DIRECT_CODE;
         return 1; // in the case of a label
     }
@@ -534,6 +536,8 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
     *line_binary_representation = make_binary_line(instruction, source_mion,
         dest_mion); // 14
 
+
+
     // 15
     binary_line* new_node = malloc(sizeof(binary_line));
     new_node->LC = LC;
@@ -542,6 +546,11 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
     int i;
     for (i = 1; i < 5; i++) {
         new_node->words[i] = 0;
+    }
+    // initialzie the type for the labels
+    for (i = 0; i < 2; i++) {
+        new_node->labels[i] = "";
+        new_node->labels_addressing[i] = 0;
     }
     // if immidiate
     new_node->next = NULL;
@@ -554,6 +563,9 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
     if (*source_mion == 2) {
         analyze_matrix(first_op, first_bracket, second_bracket, error);
         new_node->words[2] = make_matrix_word(first_bracket, second_bracket);
+        new_node->labels[0] = strdup(first_op);
+        new_node->labels_addressing[0] = 1; // words[1] needs to be updated to the location of the matrix
+        //printf("sixth added %s intended to be placed in word place %d\n", new_node->labels[0], new_node->labels_addressing[0]);
     }
     if (*dest_mion == 2) {
         analyze_matrix(second_op, first_bracket, second_bracket, error);
@@ -561,10 +573,16 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         if (*source_mion == 2) {
             // words[0] is instruction, words[1-2] is the source matrix , words[3] is matrix and 4 is word
             new_node->words[4] = matrix_word; // this means two matrixes
+            new_node->labels[1] = strdup(second_op);
+            new_node->labels_addressing[1] = 3; // words[3] needs to be updated to the location of the matrix
+            //printf("fifth added %s intended to be placed in word place %d\n", new_node->labels[1], new_node->labels_addressing[1]);
         }
         else { // if register or immediate
             // words[0] is instruction, words[1] is the source (register or immediate), words[2] is matrix and 3 is word
             new_node->words[3] = matrix_word;
+            new_node->labels[1] = strdup(first_op);
+            new_node->labels_addressing[1] = 2; // words[2] needs to be updated to the location of the matrix
+            //printf("forth added %s intended to be placed in word place %d\n", new_node->labels[1], new_node->labels_addressing[1]);
         }
     }
     if (first_op != NULL && *source_mion == 3) {
@@ -587,12 +605,43 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
             new_node->words[1] = new_node->words[1] | dest_r_number; // same extra word
         }
     }
+    if (*source_mion == 1) { // if label is source
+        // now in the first passage words[1] is by default 0
+        // so we update labels and labels addressing accordingly:
+        new_node->labels[0] = strdup(first_op); // first operand is a label, "source"
+        new_node->labels_addressing[0] = 1; // 0 is source and words[1] needs to be read as label
+        //printf("first added %s intended to be placed in word place %d\n", new_node->labels[0], new_node->labels_addressing[0]);
+    }
+    if (*dest_mion == 1) {
+        if (*source_mion == 2) { // if matrix is source and destination is label
+            // because if for example jmp or any of the one operand instruciton so the first op is the destination
+            if (second_op == NULL) {
+                new_node->labels[1] = strdup(first_op);
+            }
+            else {
+                new_node->labels[1] = strdup(second_op);
+            }
+            new_node->labels_addressing[1] = 3; // 3 because 0 - instruction; 1 - matrix name; 2 - matrix registers
+            //printf("second added %s intended to be placed in word place %d\n", new_node->labels[1], new_node->labels_addressing[1]);
 
+        }
+        else {
+            // because if for example jmp or any of the one operand instruciton so the first op is the destination
+            if (second_op == NULL) {
+                new_node->labels[1] = strdup(first_op);
+
+            }
+            else {
+                new_node->labels[1] = strdup(second_op);
+            }
+            new_node->labels_addressing[1] = 2; // 0 - instruction; 1 - source operand 2 - our label
+            //printf("third added %s intended to be placed in word place %d\n", new_node->labels[1], new_node->labels_addressing[1]);
+        }
+    }
 
     if ((*binary_list)->LC == -1) { // if dummy node
         **binary_list = *new_node; // workaround
         free(new_node);
-
     }
     else {
         (*binary_list)->next = new_node;
@@ -608,7 +657,16 @@ void free_all(label_list *list, binary_line *line_to_free) {
         for (i = 0; i<5; i++) {
             print_binary(line_to_free->words[i]);
         }
+        // if (line_to_free->labels[1] != "") {
+        //     printf(" there is a label in the destination: %s", line_to_free->labels[1]);
+        // }
         printf("\n");
+        if (line_to_free->labels[0] != "") {
+            free(line_to_free->labels[0]);
+        }
+        if (line_to_free->labels[1] != "") {
+            free(line_to_free->labels[1]);
+        }
         free(line_to_free);
         line_to_free = tmp;
     }
@@ -644,6 +702,10 @@ int main() {
     int w;
     for (w = 0; w < 5; w++) {
         instructions_in_binary->words[w] = 0;
+    }
+    for (w = 0; w < 2; w++) {
+        instructions_in_binary->labels[w] = "";
+        instructions_in_binary->labels_addressing[w] = 0;
     }
 
     binary_line *instructions_iter = instructions_in_binary;
@@ -774,6 +836,7 @@ int main() {
 
 
     if (exists_error) { // 17
+        free_all(the_label_list, instructions_in_binary);
         fclose(source_asm);
         exit(1);
     }
@@ -791,17 +854,6 @@ int main() {
         }
         tmp = tmp->next_label;
     }
-
-
-    free_all(the_label_list, instructions_in_binary);
-    int i;
-    for (i = 0; i < 15; i++) {
-        print_binary(memory[i]);
-        printf("\n");
-    }
-    // second_pass_start(77);
-
-
-
+    second_passage(instructions_in_binary, the_label_list, DCF, ICF);
     return 0;
 }
