@@ -543,6 +543,7 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
     new_node->LC = LC;
     new_node->L = *L;
     new_node->words[0] = *line_binary_representation;
+    printf("words  in the add: %d\n", new_node->words[0]);
     int i;
     for (i = 1; i < 5; i++) {
         new_node->words[i] = 0;

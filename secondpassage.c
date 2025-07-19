@@ -13,7 +13,7 @@
 #include "firstpassage.h"
 
 #define LABEL_PADDING 2
-#define R_BIT 1
+#define R_BIT 2
 
 
 
@@ -47,7 +47,14 @@ void build_label_word(label_list *the_label_list, binary_line *current_line, cha
         if (strcmp(label_object->label_type, "external") != 0) {
             // shift the location and OR with A,R,E bit (01)
             unsigned short label_word = (label_object->value << LABEL_PADDING) | R_BIT;
-            current_line->words[current_line->labels_addressing[address_pos]] = label_word;
+            int position = current_line->labels_addressing[address_pos];
+            if (position != 0) {
+                current_line->words[position] = label_word;
+            }
+
+            //printf("words after changing addressing : %d\n", current_line->words[0]);
+
+
         }
     }
     else {
@@ -115,6 +122,7 @@ int second_passage(binary_line *binary_line_list, label_list *the_label_list, in
             // }
             char *source_label = current_line->labels[0];
             char *destination_label = current_line->labels[1];
+            printf("words before changing addressing : %d \n", current_line->words[0]);
             if (source_label != "") { // we have a source label!
                 build_label_word(the_label_list, current_line, source_label, 0, LC, &exists_error);
             }
