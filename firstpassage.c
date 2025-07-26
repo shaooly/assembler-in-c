@@ -51,6 +51,17 @@ void print_binary(unsigned short number) {
 
 }
 
+int number_of_psikim(char *line) {
+    int i = 0;
+    int sum = 0;
+    for (i = 0; line[i] != '\0'; i++) {
+        if (line[i] == ',') {
+            sum++;
+        }
+    }
+    return sum;
+}
+
 
 int name_valid(char *name, int LC, int *error) {
     const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne",
@@ -72,6 +83,12 @@ int name_valid(char *name, int LC, int *error) {
     for (i = 0; name[i] != '\0' && name[i] != '\n'; i++) {
         if (isalnum(name[i]) == 0 && name[i] != '_') {
             if (name[i] == ':' && name[i+1] != '\0') { // check if dots are in the name not in the last positon of name
+                fprintf(stderr, "Error in line %d. The char in the %dth position in macro name is not alphanumeric.\n"
+                    , LC, i);
+                *error = 1;
+                return 0;
+            }
+            if (name[i] != ':') {
                 fprintf(stderr, "Error in line %d. The char in the %dth position in macro name is not alphanumeric.\n"
                     , LC, i);
                 *error = 1;
@@ -117,11 +134,11 @@ int is_symbol(char first_word[LINE_LENGTH], int *weird_flag, int LC, int *error)
 }
 
 int is_instruction(char first_word[LINE_LENGTH], int LC, int *error) {
-    const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne", "jsr",
-        "red", "prn", "rts", "stop", "mcro", "mcroend"};
+    const char *known_instructions[20] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne", "jsr",
+        "red", "prn", "rts", "stop", "mcro", "mcroend", ".entry", ".extern"};
 
     int i = 0;
-    for (i = 0; i < 18; i++) {
+    for (i = 0; i < 20; i++) {
         if (strcmp(first_word, known_instructions[i]) == 0) {
             return 1;
         }
@@ -185,8 +202,9 @@ void insert_to_label(label_list *list, char label_name[LINE_LENGTH], char *label
 
 void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
     char full_data[LINE_LENGTH] = "";
+    printf("%s\n", data);
 
-    if (strcmp(data_type, ".string") != 0) {
+    if (strcmp(data_type, ".string") != 0 && strcmp(data_type, ".data") != 0) {
         while (data != NULL) {
             strcat(full_data, data);
             data = strtok(NULL, " \t\n");
@@ -197,12 +215,13 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             strcat(full_data, data);
             data = strtok(NULL, "");
         }
-        // printf(full_data);
+        printf("%s\n", full_data);
     }
     int i = 0;
     int word_count = 0;
     int sign = 1;
     int num = 0;
+    int appeared_space = 0;
     if (strcmp(data_type, ".data") == 0) { // if contaings numbers and such
         while (i < strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
@@ -220,6 +239,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
                 word_count++; // new mila
                 sign = 1;
                 num = 0;
+                appeared_space = 0;
             }
             // make sure the plus sign only appears next to a number or at the start of the expression :)
             else if ((full_data[i] == '+' || full_data[i] == '-') && full_data[i - 1] != ',' && i != 0) {
@@ -228,6 +248,9 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             }
             // check if all are numbers
             // + and - signs give false positive so account for these tooooooooooooooo
+            else if (full_data[i] == ' ' || full_data[i] == '\t') {
+                appeared_space = 1;
+            }
             else if ((full_data[i] < '0' || full_data[i] > '9') && full_data[i] != '+' && full_data[i] != '-') {
                 *error = 1;
                 fprintf(stderr, "You have something that isn't a number in line %d", LC);
@@ -239,6 +262,11 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
                 sign = 1; // although it doesn't matter really
             }
             else {
+                if (appeared_space) {
+                    *error = 1;
+                    fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", LC);
+                    return;
+                }
                 num *= 10;
                 num += full_data[i] - '0';
             }
@@ -536,14 +564,11 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
     *line_binary_representation = make_binary_line(instruction, source_mion,
         dest_mion); // 14
 
-
-
     // 15
     binary_line* new_node = malloc(sizeof(binary_line));
     new_node->LC = LC;
     new_node->L = *L;
     new_node->words[0] = *line_binary_representation;
-    printf("words  in the add: %d\n", new_node->words[0]);
     int i;
     for (i = 1; i < 5; i++) {
         new_node->words[i] = 0;
@@ -629,13 +654,14 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         else {
             // because if for example jmp or any of the one operand instruciton so the first op is the destination
             if (second_op == NULL) {
+                printf("hi! going to insert %s into \n", first_op);
                 new_node->labels[1] = strdup(first_op);
-
+                new_node->labels_addressing[1] = 1; // 0 - instruction; 1 - destination
             }
             else {
                 new_node->labels[1] = strdup(second_op);
+                new_node->labels_addressing[1] = 2; // 0 - instruction; 1 - source operand 2 - our label
             }
-            new_node->labels_addressing[1] = 2; // 0 - instruction; 1 - source operand 2 - our label
             //printf("third added %s intended to be placed in word place %d\n", new_node->labels[1], new_node->labels_addressing[1]);
         }
     }
@@ -655,13 +681,14 @@ void free_all(label_list *list, binary_line *line_to_free) {
     while (line_to_free != NULL) {
         binary_line *tmp = line_to_free->next;
         int i;
+        printf("\n");
+
         for (i = 0; i<5; i++) {
             print_binary(line_to_free->words[i]);
         }
         // if (line_to_free->labels[1] != "") {
         //     printf(" there is a label in the destination: %s", line_to_free->labels[1]);
         // }
-        printf("\n");
         if (line_to_free->labels[0] != "") {
             free(line_to_free->labels[0]);
         }
@@ -798,12 +825,19 @@ int main() {
                             third_word = strtok(copy_third, " ,");
                             forth_word = strtok(NULL, " ,");
                             // printf("splitted here %s", forth_word);
-                            analyze_and_build(&L, &line_binary_representation,  &immediate_word, second_word, third_word,
-                                forth_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter);
                         }
-                    }
+                        analyze_and_build(&L, &line_binary_representation,  &immediate_word, second_word, third_word,
+                            forth_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter);
 
+                    }
+                    // error checking
+                    if (number_of_psikim(line) == 0 && forth_word != NULL && third_word != NULL) { //
+                        fprintf(stderr, "Error in line %d. No psikim between operands.\n", LC);
+                        exists_error = 1;
+                    }
                 }
+
+
             }
             else if (is_instruction(first_word, LC, &exists_error)) { // 12
                 if ((strcmp(first_word, "stop") == 0 || strcmp(first_word, "rts") == 0) && second_word == NULL) {
@@ -819,7 +853,14 @@ int main() {
                     }
                     analyze_and_build(&L, &line_binary_representation, &immediate_word, first_word, second_word,
                                             third_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter);
+                }
+                // if we have both a destination (third) and source (second) words and no psik in the line
+                // means error
+                // if a psik is somewhere else in the code, it will raise label not in list error
 
+                if (number_of_psikim(line) == 0 && third_word != NULL && second_word != NULL) {
+                    fprintf(stderr, "Error in line %d. No psikim between operands.\n", LC);
+                    exists_error = 1;
                 }
             }
             // else {

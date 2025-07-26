@@ -4,7 +4,7 @@ LOOP: 	jmp END
 		prn #-5
 		sub r1, r4
 		inc K
-		mov M1[r3][r3] r3
+		mov M1[r3][r3], r3
 		bne LOOP
 END: 	stop
 STR: 	.string "abcdef"

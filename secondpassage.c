@@ -64,6 +64,19 @@ void build_label_word(label_list *the_label_list, binary_line *current_line, cha
 }
 
 
+char *make_yihoodi_number(unsigned short num) {
+    char *base_4_special_number = malloc(6);
+    int i;
+    for (i = 4; i >= 0; i--) {
+        int times_fit = floor(num / pow(4, i));
+        char letter_in_i_pos = times_fit + 'a';
+        base_4_special_number[i] = letter_in_i_pos;
+        num = num - (int) pow(4, i) * times_fit;
+    }
+    base_4_special_number[5] = '\0';
+    return base_4_special_number;
+}
+
 int second_passage(binary_line *binary_line_list, label_list *the_label_list, int DCF, int ICF) {
     int exists_error = 0;
     int LC = 1; // we will match it with LC's !
@@ -82,6 +95,7 @@ int second_passage(binary_line *binary_line_list, label_list *the_label_list, in
             LC++;
             continue;
         }
+
         if (first_word[strlen(first_word) - 1] == ':') { // label // 2
             first_word = strtok(NULL, " \t\n"); // ignoring the label
         }
@@ -92,6 +106,7 @@ int second_passage(binary_line *binary_line_list, label_list *the_label_list, in
             LC++;
             continue;
             }
+
         second_word = strtok(NULL, " ,\t\n");
         third_word = strtok(NULL, " ,\t\n");
         // if (third_word != NULL) {
@@ -115,30 +130,59 @@ int second_passage(binary_line *binary_line_list, label_list *the_label_list, in
             }
         }
         //
-        else { // 6
+        else {
+            // 6
+
             binary_line *current_line = get_binay_line(binary_line_list, LC);
-            // if (current_line == NULL) {
-            //     fprintf(stderr, "Error in line %d. idk what happened.\n", LC);
-            // }
-            char *source_label = current_line->labels[0];
-            char *destination_label = current_line->labels[1];
-            printf("words before changing addressing : %d \n", current_line->words[0]);
-            if (source_label != "") { // we have a source label!
-                build_label_word(the_label_list, current_line, source_label, 0, LC, &exists_error);
+
+            if (current_line == NULL) {
+                fprintf(stderr, "Error in line %d. idk what happened.\n", LC);
             }
-            if (destination_label != "") { // we have a destination label!
-                build_label_word(the_label_list, current_line, destination_label, 1, LC, &exists_error);
+            else {
+                char *source_label = current_line->labels[0];
+
+                char *destination_label = current_line->labels[1];
+                if (source_label != "") { // we have a source label!
+                    build_label_word(the_label_list, current_line, source_label, 0, LC, &exists_error);
+                }
+                if (destination_label != "") { // we have a destination label!
+                    build_label_word(the_label_list, current_line, destination_label, 1, LC, &exists_error);
+                }
             }
+
         }
 
         LC++;
     }
     if (exists_error) { // 7
+
         free_all(the_label_list, binary_line_list);
         fclose(source_asm);
         exit(1);
     }
+
+
+    // build source files
+
+    // FILE *object_file = fopen("file.obj", "w");
+    // binary_line *tmp1 = binary_line_list;
+//
+    // while (tmp1 != NULL) {
+    //     char *base4_instruction = make_yihoodi_number(tmp1->words);
+//
+    //     free(base4_instruction);
+    //     tmp1 = tmp1->next;
+    // }
+//
+    // label_list *tmp = the_label_list->next_label;
+    // while (tmp != NULL) {
+    //     printf("%s | %d | %s\n", tmp->label_name, tmp->value, tmp->label_type);
+    //     tmp = tmp->next_label;
+    // }
+
+
     free_all(the_label_list, binary_line_list);
+    printf("finsihed all");
     // build_source_files // 8
     return 0;
 }
