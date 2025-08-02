@@ -27,7 +27,7 @@
 #define REGISTER_DEST_PADDING 2
 
 int memory_pointer = 0;  // define memory pointer probably will change it later
-unsigned short memory[256] = {0};
+int memory[256] = {0};
 
 
 void print_binary(unsigned short number) {
@@ -188,7 +188,9 @@ void insert_to_label(label_list *list, char label_name[LINE_LENGTH], char *label
         // insert into tmp the current label
         label_list *to_add = malloc(sizeof(label_list));
         int label_name_length = strlen(label_name);
-        label_name[label_name_length-1] = '\0';
+        if (label_name[label_name_length-1] == ':') {
+            label_name[label_name_length-1] = '\0';
+        }
         strcpy(to_add->label_name, label_name);
         strcpy(to_add->label_type, label_type);
         to_add->value = DC;
@@ -202,7 +204,6 @@ void insert_to_label(label_list *list, char label_name[LINE_LENGTH], char *label
 
 void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
     char full_data[LINE_LENGTH] = "";
-    printf("%s\n", data);
 
     if (strcmp(data_type, ".string") != 0 && strcmp(data_type, ".data") != 0) {
         while (data != NULL) {
@@ -215,7 +216,6 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             strcat(full_data, data);
             data = strtok(NULL, "");
         }
-        printf("%s\n", full_data);
     }
     int i = 0;
     int word_count = 0;
@@ -404,7 +404,6 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
             return 1;
         }
         *error = 1;
-        printf("hello: %s", operand);
         fprintf(stderr, "You have something that isn't a number in line %d", LC);
         return 0;
     }
@@ -438,7 +437,7 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
     return 0;
 }
 
-int analyze_operands(char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion,
+int  analyze_operands(char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion,
     int *error, int LC) {
     int L = 1;
     int found_register = 0; // because we want to make sure we only add one word for registers (in case there are two)
@@ -554,7 +553,7 @@ unsigned short make_matrix_word(char *first_bracket, char *second_bracket) {
 
 void analyze_and_build(int *L, unsigned short *line_binary_representation, unsigned short *immediate_word,
     char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion, int *error, int LC,
-    binary_line **binary_list) {
+    binary_line **binary_list, int IC) {
     char first_bracket[LINE_LENGTH];
     char second_bracket[LINE_LENGTH];
     int source_r_number = 0;
@@ -568,6 +567,7 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
     binary_line* new_node = malloc(sizeof(binary_line));
     new_node->LC = LC;
     new_node->L = *L;
+    new_node->IC = IC;
     new_node->words[0] = *line_binary_representation;
     int i;
     for (i = 1; i < 5; i++) {
@@ -654,7 +654,6 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         else {
             // because if for example jmp or any of the one operand instruciton so the first op is the destination
             if (second_op == NULL) {
-                printf("hi! going to insert %s into \n", first_op);
                 new_node->labels[1] = strdup(first_op);
                 new_node->labels_addressing[1] = 1; // 0 - instruction; 1 - destination
             }
@@ -708,8 +707,8 @@ void free_all(label_list *list, binary_line *line_to_free) {
     }
     free(list);
 
-}
 
+}
 
 int main() {
     int DC = 0;
@@ -726,6 +725,7 @@ int main() {
 
     instructions_in_binary->LC = -1; // mark dummy node
     instructions_in_binary->L = 0;
+    instructions_in_binary->IC = IC;
     instructions_in_binary->next = NULL;
     int w;
     for (w = 0; w < 5; w++) {
@@ -796,6 +796,7 @@ int main() {
                 // 10
                 insert_to_label(the_label_list, second_word, "external", &exists_error, 0);
             }
+
         }
         else { // instruction without label ! // this means that first word has to be a known instruction
             unsigned short line_binary_representation;
@@ -811,7 +812,7 @@ int main() {
                     char *forth_word = strtok(NULL, " ,\t\n");
                     if ((strcmp(second_word, "stop") == 0 || strcmp(second_word, "rts") == 0) && third_word == NULL) {
                         analyze_and_build(&L, &line_binary_representation, &immediate_word, second_word, third_word,
-                            forth_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter);
+                            forth_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter, IC);
                     }
                     // 13
                     // a problem has arisen that i didn't take into consideration:
@@ -827,7 +828,7 @@ int main() {
                             // printf("splitted here %s", forth_word);
                         }
                         analyze_and_build(&L, &line_binary_representation,  &immediate_word, second_word, third_word,
-                            forth_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter);
+                            forth_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter, IC);
 
                     }
                     // error checking
@@ -842,7 +843,7 @@ int main() {
             else if (is_instruction(first_word, LC, &exists_error)) { // 12
                 if ((strcmp(first_word, "stop") == 0 || strcmp(first_word, "rts") == 0) && second_word == NULL) {
                     analyze_and_build(&L, &line_binary_representation, &immediate_word, first_word, second_word,
-                        third_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter);
+                        third_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter, IC);
                 }
                 else {
                     if (third_word == NULL) {
@@ -852,7 +853,7 @@ int main() {
                         third_word = strtok(NULL, " ,");
                     }
                     analyze_and_build(&L, &line_binary_representation, &immediate_word, first_word, second_word,
-                                            third_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter);
+                                            third_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter, IC);
                 }
                 // if we have both a destination (third) and source (second) words and no psik in the line
                 // means error
@@ -874,7 +875,6 @@ int main() {
     }
 
     fclose(source_asm);
-    // free my boy
 
 
     if (exists_error) { // 17

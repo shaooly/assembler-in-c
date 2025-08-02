@@ -17,6 +17,7 @@ typedef struct label_list{
 typedef struct binary_line {
     int L;
     int LC;
+    int IC;
     unsigned short words[5];
 
     // this is a deviation from what is originally defined in the skeleton of the project
@@ -40,10 +41,13 @@ typedef struct binary_line {
     struct binary_line *next;
 } binary_line;
 
+
+
+
 void free_all(label_list *list, binary_line *line_to_free);
 void print_binary(unsigned short number);
 
-extern unsigned short memory[256];
+extern int memory[256];
 extern int memory_pointer;
 
 #endif //FIRSTPASSAGE_H
