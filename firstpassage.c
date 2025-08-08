@@ -3,8 +3,8 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <ctype.h>
+#include <string.h>
 #include <math.h>
 #include "secondpassage.h"
 #include "firstpassage.h"
@@ -222,7 +222,9 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
     int sign = 1;
     int num = 0;
     int appeared_space = 0;
+    int appeared_numbers = 0;
     if (strcmp(data_type, ".data") == 0) { // if contaings numbers and such
+        printf(full_data);
         while (i < strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
@@ -234,15 +236,21 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             }
             // new number and we know not two psikim next to each other
             if (full_data[i] == ',' || full_data[i] == '\0' || full_data[i] == '\n') {
-                memory[memory_pointer] = num * sign;
-                memory_pointer++;
-                word_count++; // new mila
-                sign = 1;
-                num = 0;
-                appeared_space = 0;
+                if (full_data[i] != '\0') {
+                    memory[memory_pointer] = num * sign;
+                    memory_pointer++;
+                    word_count++; // new mila
+                    sign = 1;
+                    num = 0;
+                    appeared_space = 0;
+                    appeared_numbers = 0;
+                }
             }
             // make sure the plus sign only appears next to a number or at the start of the expression :)
-            else if ((full_data[i] == '+' || full_data[i] == '-') && full_data[i - 1] != ',' && i != 0) {
+            // this is a weird expression but it just answers the requirement of this
+            else if ((full_data[i] == '+' || full_data[i] == '-') &&
+                ((full_data[i - 1] != ',' && full_data[i-1] != '\t' && full_data[i-1] != ' ')
+                    || full_data[i + 1] == ' ' || full_data[i+1] == '\t') && i != 0) {
                 *error = 1;
                 fprintf(stderr, "You have a sign at a bad place :( at line %d\n", LC);
             }
@@ -262,11 +270,13 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
                 sign = 1; // although it doesn't matter really
             }
             else {
-                if (appeared_space) {
+                if (appeared_space && appeared_numbers) {
                     *error = 1;
-                    fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", LC);
+                    fprintf(stderr, "You have a problem with your spaces :( it's on line %d. Fix it.\n", LC);
                     return;
                 }
+                appeared_numbers = 1;
+                appeared_space = 0;
                 num *= 10;
                 num += full_data[i] - '0';
             }
@@ -437,7 +447,7 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
     return 0;
 }
 
-int  analyze_operands(char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion,
+int analyze_operands(char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion,
     int *error, int LC) {
     int L = 1;
     int found_register = 0; // because we want to make sure we only add one word for registers (in case there are two)
@@ -551,6 +561,52 @@ unsigned short make_matrix_word(char *first_bracket, char *second_bracket) {
     return final_bit;
 }
 
+// checks if a string is in a list
+//
+
+int contains_in_list(const char *str1, const char **list, int const size) {
+    int i;
+    for (i = 0; i<size; i++) {
+        if (strcmp(str1, list[i]) == 0) {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+// this function checks that the instruction has enough operands
+// for example - the instructino mov requires two operands
+// this function will hopefully catch all the cases where an instruction requires n operands and make sure
+// the call for the instruction satisfies the operand requirements
+// returns 1 if call is invalid and 0 if valid
+int invalid_call(char *instruction, char *first_op, char *second_op) {
+    const char *two_operands[5] = {"mov", "cmp", "add", "sub", "lea"};
+    const char *single_operand[9] = { "clr", "not", "inc", "dec", "jmp", "bne", "jsr", "red", "prn"};
+    const char *no_operands[2] = {"rts", "stop"};
+
+    // check two operands first
+    if (contains_in_list(instruction, two_operands, 5)) { // this means the instruction should have two operands
+        if (first_op != NULL && second_op != NULL) {
+            return 0; // call is valid
+        }
+        return 1; // call is invalid
+    }
+    if (contains_in_list(instruction, single_operand, 9)) {
+        if (first_op != NULL && second_op == NULL) { // only first operand exists
+            return 0; // call is valid
+        }
+        return 1; // call is invalid
+    }
+    if (contains_in_list(instruction, no_operands, 2)) {
+        if (first_op == NULL && second_op == NULL) { // there shouldn't be any operands
+            return 0; // call is valid
+        }
+        return 1;
+    }
+
+    return 0;
+}
+
 void analyze_and_build(int *L, unsigned short *line_binary_representation, unsigned short *immediate_word,
     char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion, int *error, int LC,
     binary_line **binary_list, int IC) {
@@ -563,6 +619,10 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
     *line_binary_representation = make_binary_line(instruction, source_mion,
         dest_mion); // 14
 
+    if (invalid_call(instruction, first_op, second_op)) { // this means the call is invalid
+        *error = 1;
+        fprintf(stderr, "Error. The number of operands for the command in line %d is bad", LC);
+    }
     // 15
     binary_line* new_node = malloc(sizeof(binary_line));
     new_node->LC = LC;
@@ -744,11 +804,19 @@ int main() {
         char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
         strncpy(line_for_tokenisation, line,LINE_LENGTH);
         char *first_word = strtok(line_for_tokenisation, " \t\n");
+        if (first_word == NULL) { // empty line
+            LC++;
+            continue;
+        }
+        if (first_word[0] == ';') { // comment
+            LC++;
+            continue;
+        }
         char *second_word;
         // if we get string as data we want it not to erase the spaces
         // account for this early on
 
-        if (strcmp(first_word, ".string") == 0) { // this is only for the weird symbol case.
+        if (strcmp(first_word, ".string") == 0 || strcmp(first_word, ".data") == 0) { // this is only for the weird symbol case.
             second_word = strtok(NULL, "");
         }
         else { // jert
@@ -756,7 +824,7 @@ int main() {
         }
         char *third_word = 0;
         if (second_word) {
-            if (strcmp(second_word, ".string") == 0) {
+            if (strcmp(second_word, ".string") == 0 || strcmp(second_word, ".data") == 0) {
                 third_word = strtok(NULL, "");
             }
             else {

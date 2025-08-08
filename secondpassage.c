@@ -6,7 +6,7 @@
 #include "firstpassage.h"
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
+#include <string.h>
 #include <ctype.h>
 #include <math.h>
 #include "secondpassage.h"
@@ -113,7 +113,11 @@ int second_passage(binary_line *binary_line_list, label_list *the_label_list, in
         char *first_word = strtok(line_for_tokenisation, " \t\n");
         char *third_word = 0;
 
-        if (first_word == NULL) { // empty line - skip
+        if (first_word == NULL) { // empty line
+            LC++;
+            continue;
+        }
+        if (first_word[0] == ';') { // comment
             LC++;
             continue;
         }
@@ -154,10 +158,9 @@ int second_passage(binary_line *binary_line_list, label_list *the_label_list, in
         //
         else {
             // 6
-
             binary_line *current_line = get_binay_line(binary_line_list, LC);
-
             if (current_line == NULL) {
+                exists_error = 1;
                 fprintf(stderr, "Error in line %d. idk what happened.\n", LC);
             }
             else {
@@ -175,7 +178,7 @@ int second_passage(binary_line *binary_line_list, label_list *the_label_list, in
         LC++;
     }
     if (exists_error) { // 7
-
+        remove("ps.ext");
         free_all(the_label_list, binary_line_list);
         fclose(source_asm);
         exit(1);
@@ -193,9 +196,6 @@ int second_passage(binary_line *binary_line_list, label_list *the_label_list, in
             if (tmp1->words[i] != 0) {
                 char *base4_instruction = make_yihoodi_number(tmp1->words[i], 5);
                 char *base4_address = make_yihoodi_number(tmp1->IC + i, 4);
-                if (strcmp(base4_instruction, "aaaab") == 0) { // the only way the instruction is aaaab is if ext
-
-                }
                 fprintf(object_file, base4_address);
                 fprintf(object_file, "\t");
                 fprintf(object_file, base4_instruction);
@@ -219,9 +219,6 @@ int second_passage(binary_line *binary_line_list, label_list *the_label_list, in
         free(base4_address);
     }
     fclose(object_file);
-
-
-
     label_list *tmp = the_label_list;
     // iterate label list and extract entries
     int exists_entry = 0; // flag if entry exists and create file.
@@ -230,7 +227,6 @@ int second_passage(binary_line *binary_line_list, label_list *the_label_list, in
     while (tmp != NULL) {
         // strstr checks if "entry" is a substring
         if (strstr(tmp->label_type, "entry")) {
-            printf("hi i'm %s and i'm entry", tmp->label_name);
             exists_entry = 1;
         }
         tmp = tmp->next_label;
@@ -251,9 +247,7 @@ int second_passage(binary_line *binary_line_list, label_list *the_label_list, in
         }
 
     }
-
     free_all(the_label_list, binary_line_list);
-    printf("finsihed all");
     // build_source_files // 8
     return 0;
 }
