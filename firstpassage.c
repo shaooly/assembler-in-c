@@ -5,7 +5,6 @@
 #include <stdlib.h>
 #include <ctype.h>
 #include <string.h>
-#include <math.h>
 #include "secondpassage.h"
 #include "firstpassage.h"
 
@@ -29,6 +28,29 @@
 int memory_pointer = 0;  // define memory pointer probably will change it later
 int memory[256] = {0};
 
+int is_null_terminated(const char *str, int max_len) {
+    int i;
+    if (str == NULL) {
+        return 0;
+    }
+    for (i = 0; i < max_len; i++) {
+        if (str[i] == '\0') {
+            return 1;
+        }
+    }
+    return 0;
+}
+
+
+/* apparently, strdup isn't a function in C90 lolll
+ * so i built my own :)
+ */
+char *new_strdup(const char *str) {
+    int length = (int)strlen(str) + 1; /* it cutted off the last part of my string probably null termination so add 1 */
+    char *new_str = malloc(length);
+    memcpy(new_str, str, length);
+    return new_str;
+}
 
 void print_binary(unsigned short number) {
     int i;
@@ -64,6 +86,7 @@ int number_of_psikim(char *line) {
 
 
 int name_valid(char *name, int LC, int *error) {
+    int i = 0;
     const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne",
         "jsr", "red", "prn", "rts", "stop", "mcro", "mcroend"};
 
@@ -79,17 +102,16 @@ int name_valid(char *name, int LC, int *error) {
         return 0;
 
     }
-    int i =0;
     for (i = 0; name[i] != '\0' && name[i] != '\n'; i++) {
         if (isalnum(name[i]) == 0 && name[i] != '_') {
             if (name[i] == ':' && name[i+1] != '\0') { // check if dots are in the name not in the last positon of name
-                fprintf(stderr, "Error in line %d. The char in the %dth position in macro name is not alphanumeric.\n"
+                fprintf(stderr, "Error in line %d. The char in the %dth position in label name is not alphanumeric.\n"
                     , LC, i);
                 *error = 1;
                 return 0;
             }
             if (name[i] != ':') {
-                fprintf(stderr, "Error in line %d. The char in the %dth position in macro name is not alphanumeric.\n"
+                fprintf(stderr, "Error in line %d. The char in the %dth position in label name is not alphanumeric.\n"
                     , LC, i);
                 *error = 1;
                 return 0;
@@ -101,11 +123,16 @@ int name_valid(char *name, int LC, int *error) {
         name[strlen(name) - 1] = '\0'; // remove newline if there is any
     }
     for (i = 0; i < 18; i++) {
-        if (strcmp(name, known_instructions[i]) == 0) { // if macro name is known instruction name.
-            fprintf(stderr, "Error in line %d. The macro name is a known instruction name (%s).", LC,
-                known_instructions[i]);
-            *error = 1;
-            return 0;
+        if (is_null_terminated(name, LINE_LENGTH)) {
+            if (strcmp(name, known_instructions[i]) == 0) { // if label name is known instruction name.
+                fprintf(stderr, "Error in line %d. The label name is a known instruction name (%s).", LC,
+                    known_instructions[i]);
+                *error = 1;
+                return 0;
+            }
+        }
+        else {
+            printf("hi! bad code! you should null terminate the string bro");
         }
     }
     return 1;
@@ -113,21 +140,24 @@ int name_valid(char *name, int LC, int *error) {
 
 // remember to add more checks !!!
 int is_symbol(char first_word[LINE_LENGTH], int *weird_flag, int LC, int *error) {
-
+    int i = 0;
     char *possible_instructions[5] = {".data", ".string", ".mat", ".entry", ".extern"};
-
     if (first_word[strlen(first_word) - 1] == ':') {
         if (name_valid(first_word, LC, error)) {
             return 1;
         }
     }
-
-    int i = 0;
     for (i = 0; i < 5; i++) { // check if there is an instruction .{} without label (rare)
-        if (strcmp(first_word, possible_instructions[i]) == 0) {
-            *weird_flag = 1;
-            return 1;
+        if (is_null_terminated(first_word, LINE_LENGTH)) {
+            if (strcmp(first_word, possible_instructions[i]) == 0) {
+                *weird_flag = 1;
+                return 1;
+            }
         }
+        else {
+            printf("hi! bad code! you have bad strings at %d", LC);
+        }
+
     }
     return 0;
 
@@ -151,6 +181,7 @@ int is_instruction(char first_word[LINE_LENGTH], int LC, int *error) {
 
 int is_data_storing(char first_word[LINE_LENGTH], char second_word[LINE_LENGTH]) {
     char *data_storers[3] = {".data", ".string", ".mat"};
+    int i = 0;
     if (first_word[strlen(first_word) - 1] == ':') {
         int i = 0;
         for (i = 0; i < 3; i++) {
@@ -159,8 +190,8 @@ int is_data_storing(char first_word[LINE_LENGTH], char second_word[LINE_LENGTH])
             }
         }
     }
-    int i = 0;
     // check for weird case
+
     for (i = 0; i < 3; i++) {
         if (strcmp(first_word, data_storers[i]) == 0) {
             return 1;
@@ -204,7 +235,12 @@ void insert_to_label(label_list *list, char label_name[LINE_LENGTH], char *label
 
 void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
     char full_data[LINE_LENGTH] = "";
-
+    int i = 0;
+    int word_count = 0;
+    int sign = 1;
+    int num = 0;
+    int appeared_space = 0;
+    int appeared_numbers = 0;
     if (strcmp(data_type, ".string") != 0 && strcmp(data_type, ".data") != 0) {
         while (data != NULL) {
             strcat(full_data, data);
@@ -217,14 +253,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             data = strtok(NULL, "");
         }
     }
-    int i = 0;
-    int word_count = 0;
-    int sign = 1;
-    int num = 0;
-    int appeared_space = 0;
-    int appeared_numbers = 0;
     if (strcmp(data_type, ".data") == 0) { // if contaings numbers and such
-        printf(full_data);
         while (i < strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
@@ -405,8 +434,9 @@ int analyze_matrix(char *op, char *first_bracket, char *second_bracket, int *err
 
 int words_per_operand(char *operand, int *operand_type, int *error, int *register_flag, int LC) {
     // check if immediate
-    // printf("the operand is %s\n", operand);
+    // using fillers for the anlyze matrix function
     char filler[LINE_LENGTH];
+    char matrix_tmp[LINE_LENGTH];
     if (operand[0] == '#') {
         if (is_number(operand)) {
             //printf("line number %d added 1 word\n", LC);
@@ -428,8 +458,7 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
         *operand_type = REGISTER_CODE;
         return 0;
     }
-    // using fillers for the anlyze matrix function
-    char matrix_tmp[LINE_LENGTH];
+
     strcpy(matrix_tmp, operand);
     if (analyze_matrix(matrix_tmp, filler, filler, error)) { // idk if this is common c practice
         *operand_type = MATRIX_CODE;
@@ -484,12 +513,16 @@ unsigned short make_binary_line(char *instruction, int *first_op_type, int *seco
     // ARE will always be 00 for the first passage !
     // so i won't touch it
 
-    unsigned short final_bin = 0;
+    unsigned short dest_type;
+    unsigned short source_type;
+    unsigned short opcode;
+    unsigned short final_bit;
+    int i = 0;
+
     // OPCODE
     // the idea with this is to make the index of each instruction the number and then transform i to binary
     const char *known_instructions[16] = {"mov", "cmp", "add", "sub", "not", "clr", "lea", "inc", "dec", "jmp", "bne",
         "red", "prn", "jsr", "rts", "stop"};
-    int i = 0;
     for (i = 0; i<16; i++) {
         if (strcmp(instruction, known_instructions[i]) == 0) {
             break;
@@ -498,10 +531,10 @@ unsigned short make_binary_line(char *instruction, int *first_op_type, int *seco
     }
     // work on shifting logic
 
-    unsigned short dest_type = *second_op_type << DEST_PADDING;
-    unsigned short source_type = *first_op_type << SOURCE_PADDING;
-    unsigned short opcode = i << OPCODE_PADDING;
-    unsigned short final_bit = opcode | dest_type | source_type;
+    dest_type = *second_op_type << DEST_PADDING;
+    source_type = *first_op_type << SOURCE_PADDING;
+    opcode = i << OPCODE_PADDING;
+    final_bit = opcode | dest_type | source_type;
     // printf("finbal bitwise is: %d \n", final_bit);
     // 1100 00 00 00
     // 1001 00 01 00
@@ -552,12 +585,12 @@ unsigned short make_matrix_word(char *first_bracket, char *second_bracket) {
     // 5-2 = amooda
     int row = first_bracket[1] - '0';
     int column = second_bracket[1] - '0';
-
+    unsigned short final_bit;
     // format it to 6-9, 5-2
     row = row << ROW_REGISTER_PADDING_FOR_MATRIX;
     column = column << COLUMN_REGISTER_PADDING_FOR_MATRIX;
 
-    unsigned short final_bit = row | column;
+    final_bit = row | column;
     return final_bit;
 }
 
@@ -614,22 +647,26 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
     char second_bracket[LINE_LENGTH];
     int source_r_number = 0;
     int dest_r_number = 0;
+    int i;
+    unsigned short matrix_word;
+    binary_line* new_node = malloc(sizeof(binary_line));
+
     *L = analyze_operands(instruction, first_op, second_op, source_mion,
                             dest_mion, error, LC); // 13 dest and source nonsense fix it in the original function
     *line_binary_representation = make_binary_line(instruction, source_mion,
         dest_mion); // 14
-
     if (invalid_call(instruction, first_op, second_op)) { // this means the call is invalid
         *error = 1;
         fprintf(stderr, "Error. The number of operands for the command in line %d is bad", LC);
     }
     // 15
-    binary_line* new_node = malloc(sizeof(binary_line));
+
     new_node->LC = LC;
     new_node->L = *L;
     new_node->IC = IC;
     new_node->words[0] = *line_binary_representation;
-    int i;
+    new_node->next = NULL;
+
     for (i = 1; i < 5; i++) {
         new_node->words[i] = 0;
     }
@@ -639,7 +676,6 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         new_node->labels_addressing[i] = 0;
     }
     // if immidiate
-    new_node->next = NULL;
     if (first_op != NULL && first_op[0] == '#') {
         // printf("this is immidiate\n");
         *immediate_word = make_word(first_op);
@@ -649,24 +685,24 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
     if (*source_mion == 2) {
         analyze_matrix(first_op, first_bracket, second_bracket, error);
         new_node->words[2] = make_matrix_word(first_bracket, second_bracket);
-        new_node->labels[0] = strdup(first_op);
+        new_node->labels[0] = new_strdup(first_op);
         new_node->labels_addressing[0] = 1; // words[1] needs to be updated to the location of the matrix
         //printf("sixth added %s intended to be placed in word place %d\n", new_node->labels[0], new_node->labels_addressing[0]);
     }
     if (*dest_mion == 2) {
         analyze_matrix(second_op, first_bracket, second_bracket, error);
-        unsigned short matrix_word = make_matrix_word(first_bracket, second_bracket);
+        matrix_word = make_matrix_word(first_bracket, second_bracket);
         if (*source_mion == 2) {
             // words[0] is instruction, words[1-2] is the source matrix , words[3] is matrix and 4 is word
             new_node->words[4] = matrix_word; // this means two matrixes
-            new_node->labels[1] = strdup(second_op);
+            new_node->labels[1] = new_strdup(second_op);
             new_node->labels_addressing[1] = 3; // words[3] needs to be updated to the location of the matrix
             //printf("fifth added %s intended to be placed in word place %d\n", new_node->labels[1], new_node->labels_addressing[1]);
         }
         else { // if register or immediate
             // words[0] is instruction, words[1] is the source (register or immediate), words[2] is matrix and 3 is word
             new_node->words[3] = matrix_word;
-            new_node->labels[1] = strdup(first_op);
+            new_node->labels[1] = new_strdup(first_op);
             new_node->labels_addressing[1] = 2; // words[2] needs to be updated to the location of the matrix
             //printf("forth added %s intended to be placed in word place %d\n", new_node->labels[1], new_node->labels_addressing[1]);
         }
@@ -694,7 +730,7 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
     if (*source_mion == 1) { // if label is source
         // now in the first passage words[1] is by default 0
         // so we update labels and labels addressing accordingly:
-        new_node->labels[0] = strdup(first_op); // first operand is a label, "source"
+        new_node->labels[0] = new_strdup(first_op); // first operand is a label, "source"
         new_node->labels_addressing[0] = 1; // 0 is source and words[1] needs to be read as label
         //printf("first added %s intended to be placed in word place %d\n", new_node->labels[0], new_node->labels_addressing[0]);
     }
@@ -702,10 +738,10 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         if (*source_mion == 2) { // if matrix is source and destination is label
             // because if for example jmp or any of the one operand instruciton so the first op is the destination
             if (second_op == NULL) {
-                new_node->labels[1] = strdup(first_op);
+                new_node->labels[1] = new_strdup(first_op);
             }
             else {
-                new_node->labels[1] = strdup(second_op);
+                new_node->labels[1] = new_strdup(second_op);
             }
             new_node->labels_addressing[1] = 3; // 3 because 0 - instruction; 1 - matrix name; 2 - matrix registers
             //printf("second added %s intended to be placed in word place %d\n", new_node->labels[1], new_node->labels_addressing[1]);
@@ -714,11 +750,11 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         else {
             // because if for example jmp or any of the one operand instruciton so the first op is the destination
             if (second_op == NULL) {
-                new_node->labels[1] = strdup(first_op);
+                new_node->labels[1] = new_strdup(first_op);
                 new_node->labels_addressing[1] = 1; // 0 - instruction; 1 - destination
             }
             else {
-                new_node->labels[1] = strdup(second_op);
+                new_node->labels[1] = new_strdup(second_op);
                 new_node->labels_addressing[1] = 2; // 0 - instruction; 1 - source operand 2 - our label
             }
             //printf("third added %s intended to be placed in word place %d\n", new_node->labels[1], new_node->labels_addressing[1]);
@@ -745,20 +781,18 @@ void free_all(label_list *list, binary_line *line_to_free) {
         for (i = 0; i<5; i++) {
             print_binary(line_to_free->words[i]);
         }
-        // if (line_to_free->labels[1] != "") {
-        //     printf(" there is a label in the destination: %s", line_to_free->labels[1]);
-        // }
-        if (line_to_free->labels[0] != "") {
+
+        if (strcmp(line_to_free->labels[0], "") != 0) {
             free(line_to_free->labels[0]);
         }
-        if (line_to_free->labels[1] != "") {
+        if (strcmp(line_to_free->labels[1], "") != 0) {
             free(line_to_free->labels[1]);
         }
         free(line_to_free);
         line_to_free = tmp;
     }
     free(line_to_free);
-
+    printf("\n");
     while (list->next_label != NULL) {
         label_list *tmp = list->next_label;
         printf("%s | %d | %s\n", tmp->label_name, tmp->value, tmp->label_type);
@@ -776,18 +810,29 @@ int main() {
     int LC = 1; // line counter haha
     int exists_error = 0;
     int exists_label = 0;
+    int w;
+    char *first_word;
+    char *second_word;
+    char *third_word = 0;
+    int weird_symbol_flag = 0; // in case there is a "weird" symbol (data wasting space for example .data)
+    int DCF;
+    int ICF;
+    label_list *tmp;
+    binary_line *instructions_iter;
+    char line[LINE_LENGTH];
+
     FILE *source_asm = fopen("postpre.asm", "r");
     label_list* the_label_list = malloc(sizeof(label_list));
     binary_line* instructions_in_binary = malloc(sizeof(binary_line));
     // define empty head
     the_label_list->next_label = NULL;
     strcpy(the_label_list->label_name,"");
+    strcpy(the_label_list->label_type,"");
 
     instructions_in_binary->LC = -1; // mark dummy node
     instructions_in_binary->L = 0;
     instructions_in_binary->IC = IC;
     instructions_in_binary->next = NULL;
-    int w;
     for (w = 0; w < 5; w++) {
         instructions_in_binary->words[w] = 0;
     }
@@ -796,14 +841,14 @@ int main() {
         instructions_in_binary->labels_addressing[w] = 0;
     }
 
-    binary_line *instructions_iter = instructions_in_binary;
+    instructions_iter = instructions_in_binary;
 
-    char line[LINE_LENGTH];
+
 
     while (fgets(line, LINE_LENGTH, source_asm) && !exists_error) {
         char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
         strncpy(line_for_tokenisation, line,LINE_LENGTH);
-        char *first_word = strtok(line_for_tokenisation, " \t\n");
+        first_word = strtok(line_for_tokenisation, " \t\n");
         if (first_word == NULL) { // empty line
             LC++;
             continue;
@@ -812,7 +857,7 @@ int main() {
             LC++;
             continue;
         }
-        char *second_word;
+
         // if we get string as data we want it not to erase the spaces
         // account for this early on
 
@@ -822,7 +867,7 @@ int main() {
         else { // jert
             second_word = strtok(NULL, " ,\t\n");
         }
-        char *third_word = 0;
+        third_word = 0;
         if (second_word) {
             if (strcmp(second_word, ".string") == 0 || strcmp(second_word, ".data") == 0) {
                 third_word = strtok(NULL, "");
@@ -836,7 +881,7 @@ int main() {
         // .data "somedata"
         // for some reason it's possible, in the project handbook i didn't see any refrence to it
         // but i guess i should take care of it too no?
-        int weird_symbol_flag = 0; // in case there is a "weird" symbol (data wasting space for example .data)
+        weird_symbol_flag = 0; // in case there is a "weird" symbol (data wasting space for example .data)
 
         exists_label = is_symbol(first_word, &weird_symbol_flag, LC, &exists_error);
         if (is_data_storing(first_word, second_word)) { // 5
@@ -942,20 +987,17 @@ int main() {
     LC++;
     }
 
-    fclose(source_asm);
-
-
     if (exists_error) { // 17
         free_all(the_label_list, instructions_in_binary);
         fclose(source_asm);
         exit(1);
     }
+    fclose(source_asm);
 
-    int DCF = DC;
-    int ICF = IC;
+    DCF = DC;
+    ICF = IC;
 
-    label_list *tmp = the_label_list;
-
+    tmp = the_label_list;
 
     while (tmp != NULL) {
         if (strcmp(tmp->label_type, "data") == 0) {

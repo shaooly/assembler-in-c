@@ -1,14 +1,15 @@
 # ninja log v6
-6	88	7758449750422177	CMakeFiles/untitled2.dir/trying.c.obj	31b120c04135d999
-3	91	7758449750392283	CMakeFiles/untitled2.dir/preasm.c.obj	41dbd844e0ba7536
+6	79	7764418730142133	CMakeFiles/untitled2.dir/trying.c.obj	31b120c04135d999
+3	100	7764418730112932	CMakeFiles/untitled2.dir/preasm.c.obj	41dbd844e0ba7536
 16	67	7703066122688564	CMakeFiles/untitled2.dir/main.c.obj	e81045b95c55c226
-131	210	7758449751668013	untitled2.exe	f702c4210d610129
+156	249	7764418731652182	untitled2.exe	f702c4210d610129
 2	405	7739252005888404	build.ninja	432be27a98d63340
-2	8	7758473896625057	clean	f1c0810b4f0350db
-9	130	7758449750452087	CMakeFiles/untitled2.dir/firstpassage.c.obj	965548983c62372b
-11	107	7758449750472011	CMakeFiles/untitled2.dir/secondpassage.c.obj	ad765b8bd777ba49
-7	61	7758473897240739	CMakeFiles/untitled2.dir/trying.c.obj	31b120c04135d999
-4	64	7758473897210848	CMakeFiles/untitled2.dir/preasm.c.obj	41dbd844e0ba7536
-12	73	7758473897290570	CMakeFiles/untitled2.dir/secondpassage.c.obj	ad765b8bd777ba49
-9	100	7758473897260679	CMakeFiles/untitled2.dir/firstpassage.c.obj	965548983c62372b
-100	174	7758473898170656	untitled2.exe	f702c4210d610129
+2	8	7764418729665200	clean	f1c0810b4f0350db
+10	156	7764418730190798	CMakeFiles/untitled2.dir/firstpassage.c.obj	965548983c62372b
+13	134	7764418730220005	CMakeFiles/untitled2.dir/secondpassage.c.obj	ad765b8bd777ba49
+2	8	7764422180198481	clean	f1c0810b4f0350db
+6	44	7764422180670722	CMakeFiles/untitled2.dir/trying.c.obj	31b120c04135d999
+3	67	7764422180641511	CMakeFiles/untitled2.dir/preasm.c.obj	41dbd844e0ba7536
+11	77	7764422180719393	CMakeFiles/untitled2.dir/secondpassage.c.obj	ad765b8bd777ba49
+8	103	7764422180690177	CMakeFiles/untitled2.dir/firstpassage.c.obj	965548983c62372b
+103	172	7764422181633486	untitled2.exe	f702c4210d610129
