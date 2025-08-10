@@ -83,8 +83,20 @@ int number_of_psikim(char *line) {
 }
 
 
-int label_name_valid(char *name, int LC, int *error) {
+int label_name_valid(char *name, int LC, macro_Linked_list *macro_table, int *error) {
     int i = 0;
+    macro_Linked_list *tmp = macro_table;
+    while (tmp != NULL) {
+        if (strcmp(tmp->name, name) == 0) {
+            fprintf(stderr, "Error in line %d. The label name is a name of a macro so you can't use it.\n", LC);
+            *error = 1;
+            return 0;
+        }
+        tmp = tmp->next_macro;
+    }
+    // check label name is not a valid macro name
+
+
     const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne",
         "jsr", "red", "prn", "rts", "stop", "mcro", "mcroend"};
 
@@ -98,7 +110,6 @@ int label_name_valid(char *name, int LC, int *error) {
         fprintf(stderr, "Error in line %d. The first char in name is a number.\n", LC);
         *error = 1;
         return 0;
-
     }
     for (i = 0; name[i] != '\0' && name[i] != '\n'; i++) {
         if (isalnum(name[i]) == 0 && name[i] != '_') {
@@ -137,11 +148,11 @@ int label_name_valid(char *name, int LC, int *error) {
 }
 
 // remember to add more checks !!!
-int is_symbol(char first_word[LINE_LENGTH], int *weird_flag, int LC, int *error) {
+int is_symbol(char first_word[LINE_LENGTH], int *weird_flag, int LC, macro_Linked_list *macro_table, int *error) {
     int i = 0;
     char *possible_instructions[5] = {".data", ".string", ".mat", ".entry", ".extern"};
     if (first_word[strlen(first_word) - 1] == ':') {
-        if (label_name_valid(first_word, LC, error)) {
+        if (label_name_valid(first_word, LC, macro_table, error)) {
             return 1;
         }
     }
@@ -252,6 +263,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
         }
     }
     if (strcmp(data_type, ".data") == 0) { // if contaings numbers and such
+
         while (i < (int)strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
@@ -264,6 +276,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             // new number and we know not two psikim next to each other
             if (full_data[i] == ',' || full_data[i] == '\0' || full_data[i] == '\n') {
                 if (full_data[i] != '\0') {
+
                     memory[memory_pointer] = num * sign;
                     memory_pointer++;
                     word_count++; // new mila
@@ -339,30 +352,41 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             word_count += first_number * second_number;
         }
         i = 6;
-        while (i<(int)strlen(full_data)+1) {
+        printf("the full data is: %s", full_data);
+        while (i < (int)strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
-                (full_data[i] == ',' && i + 1 == (int)strlen(full_data)) // psik the last :O
+                (full_data[i] == ',' && i + 1 == (int) strlen(full_data)) // psik the last :O
                 ) {
                 *error = 1;
                 fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", LC);
                 return;
-                }
+            }
             // new number and we know not two psikim next to each other
             if (full_data[i] == ',' || full_data[i] == '\0' || full_data[i] == '\n') {
-                memory[memory_pointer] = num * sign;
-                memory_pointer++;
-                word_count++; // new mila
-                sign = 1;
-                num = 0;
+                if (full_data[i] != '\0') {
+                    memory[memory_pointer] = num * sign;
+                    printf("added number %d to the memory\n", num * sign);
+                    memory_pointer++;
+                    sign = 1;
+                    num = 0;
+                    appeared_space = 0;
+                    appeared_numbers = 0;
+                }
             }
             // make sure the plus sign only appears next to a number or at the start of the expression :)
-            else if ((full_data[i] == '+' || full_data[i] == '-') && full_data[i - 1] != ',' && i != 0) {
+            // this is a weird expression but it just answers the requirement of this
+            else if ((full_data[i] == '+' || full_data[i] == '-') &&
+                ((full_data[i - 1] != ',' && full_data[i-1] != '\t' && full_data[i-1] != ' ')
+                    || full_data[i + 1] == ' ' || full_data[i+1] == '\t') && i != 0) {
                 *error = 1;
                 fprintf(stderr, "You have a sign at a bad place :( at line %d\n", LC);
             }
             // check if all are numbers
             // + and - signs give false positive so account for these tooooooooooooooo
+            else if (full_data[i] == ' ' || full_data[i] == '\t') {
+                appeared_space = 1;
+            }
             else if ((full_data[i] < '0' || full_data[i] > '9') && full_data[i] != '+' && full_data[i] != '-') {
                 *error = 1;
                 fprintf(stderr, "You have something that isn't a number in line %d", LC);
@@ -374,12 +398,19 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
                 sign = 1; // although it doesn't matter really
             }
             else {
+                if (appeared_space && appeared_numbers) {
+                    *error = 1;
+                    fprintf(stderr, "You have a problem with your spaces :( it's on line %d. Fix it.\n", LC);
+                    return;
+                }
+                appeared_numbers = 1;
+                appeared_space = 0;
                 num *= 10;
                 num += full_data[i] - '0';
             }
-            i++;
-
+        i++;
         }
+        printf("stopped when i: %d and full_data[i] is: %d", i, full_data[i-2]);
         // printf("I would've added %d words\n", word_count);
     }
     //update DC
@@ -393,6 +424,9 @@ int is_number(char *word) {
         i = 2;
     }
     while (word[i] != '\0') {
+        if (word[i] == ',' && word[i+1] == '\0') { // i know this is spaghetti code but i wanna sumbit this already
+            return 1;
+        }
         if (word[i] < '0' || word[i] > '9') {
             return 0;
         }
@@ -466,7 +500,9 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
     // in this case, the first operand is not a matrix, direct, or register.
     // there are two possible scenarios - it's a label or it's junk
     // for now, let's assume it's a label and in the second maavar we will check if it's ok or not
-    if (label_name_valid(operand, LC, error)){
+    // i'm passing NULL here for macro table not the end of the world if it doesn't pass because in the label resolution
+    // it will fall so i'm not concernd
+    if (label_name_valid(operand, LC, NULL, error)){
         *operand_type = DIRECT_CODE;
         return 1; // in the case of a label
     }
@@ -479,7 +515,7 @@ int analyze_operands(char *instruction, char *first_op, char *second_op, int *so
     int *error, int LC) {
     int L = 1;
     int found_register = 0; // because we want to make sure we only add one word for registers (in case there are two)
-    printf("remember to add the check from the first note page! %s", instruction);
+    // printf("remember to add the check from the first note page! %s", instruction);
     // if command with one op
     if (!second_op) {
         source_mion = dest_mion;
@@ -491,7 +527,6 @@ int analyze_operands(char *instruction, char *first_op, char *second_op, int *so
     }
     if (second_op) {
         L += words_per_operand(second_op, dest_mion, error, &found_register, LC);
-        //printf("second operand is %s and took %d ", second_op, L);
     }
     // printf("total: %d\n", L);
 
@@ -559,6 +594,10 @@ unsigned short make_word(char *operand) {
         i++;
     }
     while (operand[i] != '\0') {
+        if (operand[i] == ',' && operand[i+1] == '\0') { // i know it's lazy
+            sum = sum << IMMEDIATE_PADDING;
+            return sum;
+        }
         sum *= 10;
         sum += operand[i] - '0';
         i++;
@@ -639,6 +678,30 @@ int invalid_call(char *instruction, char *first_op, char *second_op) {
     return 0;
 }
 
+/* this is i think the most important function in the code
+ * i enjoyed writing it so much and wanted to say a few words about it
+ * like the name, the functions analyzes the instruction and then build the binary representation for it
+ * basically, it crafts the representation for each word according to the book
+ * and also puts the label words inside a special array
+ * and here is the explanation about it from the header file about the data structure
+ *
+ * this is a deviation from what is originally defined in the skeleton of the project
+    the point of this is to mark which labels are in which line
+    and where they should be inputted in the words list
+    they struct will store them like this:
+    labels[0] is for the source, if the source operand is a label
+    labels[1] is for the destination
+    both will are initialized to ''
+    label addressing will save the space where the labels are supposed to be placed in words[]
+
+    usage will be in the second passage like so:
+    if labels[i] is label: i = {0, 1}
+    one to one matching to labels_addressing
+    words[labels_addressing[i]] = label address
+    this will help us complete the final binary representation of the final word
+    i hope this is detailed enough
+ */
+
 void analyze_and_build(int *L, unsigned short *line_binary_representation, unsigned short *immediate_word,
     char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion, int *error, int LC,
     binary_line **binary_list, int IC) {
@@ -659,7 +722,6 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         fprintf(stderr, "Error. The number of operands for the command in line %d is bad", LC);
     }
     // 15
-
     new_node->LC = LC;
     new_node->L = *L;
     new_node->IC = IC;
@@ -679,6 +741,13 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         // printf("this is immidiate\n");
         *immediate_word = make_word(first_op);
         new_node->words[1] = *immediate_word;
+    }
+
+    // very interesting check i want to do and didn't realise when i started this
+    // check if the destination operand is 0!
+    if (*dest_mion == 0 && second_op != NULL) {
+        *error = 1;
+        fprintf(stderr, "Error. Destination operand can't be immediate! %d ", LC);
     }
 
     if (*source_mion == 2) {
@@ -713,6 +782,7 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         new_node->words[1] = source_r_number; //
     }
     if (second_op != NULL && *dest_mion == 3) {
+
         dest_r_number = second_op[1] - '0';
         // format it to 6-9
         dest_r_number = dest_r_number << REGISTER_DEST_PADDING;
@@ -725,6 +795,12 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         else if (*source_mion == 3) {
             new_node->words[1] = new_node->words[1] | dest_r_number; // same extra word
         }
+    }
+    if (first_op != NULL && *dest_mion == 3 && second_op == NULL) { // very intersting case i caught in the final debugging.
+        dest_r_number = first_op[1] - '0';
+        // format it to 6-9
+        dest_r_number = dest_r_number << REGISTER_DEST_PADDING;
+        new_node->words[1] = dest_r_number;
     }
     if (*source_mion == 1) { // if label is source
         // now in the first passage words[1] is by default 0
@@ -789,6 +865,7 @@ void free_all(label_list *list, binary_line *line_to_free, macro_Linked_list *ma
         if (strcmp(line_to_free->labels[1], "") != 0) {
             free(line_to_free->labels[1]);
         }
+        printf("%d", line_to_free->LC);
         free(line_to_free);
         line_to_free = tmp;
     }
@@ -885,7 +962,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
                 third_word = strtok(NULL, "");
             }
             else {
-                third_word = strtok(NULL, " \t\n");
+                third_word = strtok(NULL, " ,\t\n");
             }
         }
 
@@ -895,15 +972,16 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
         // but i guess i should take care of it too no?
         weird_symbol_flag = 0; // in case there is a "weird" symbol (data wasting space for example .data)
 
-        exists_label = is_symbol(first_word, &weird_symbol_flag, LC, &exists_error);
+        exists_label = is_symbol(first_word, &weird_symbol_flag, LC, macro_list, &exists_error);
         if (is_data_storing(first_word, second_word)) { // 5
             if (exists_label) {
                 // in the case that the decleration is only .data, we will call without the name (first_word)
-                insert_to_label(the_label_list, first_word, "data", &exists_error, DC); // 6
+
                 if (weird_symbol_flag) {
                     identify_data(first_word, second_word, &DC, &exists_error, LC);
                 }
                 else {
+                    insert_to_label(the_label_list, first_word, "data", &exists_error, DC); // 6
                     identify_data(second_word, third_word, &DC, &exists_error, LC); // 7
                 }
             }
@@ -922,6 +1000,10 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
                 insert_to_label(the_label_list, second_word, "external", &exists_error, 0);
             }
 
+        }
+        else if (second_word != NULL && strcmp(second_word, ".entry") == 0) { // i don't know how i didn't do it earlier
+            LC++;
+            continue;
         }
         else { // instruction without label ! // this means that first word has to be a known instruction
             unsigned short line_binary_representation;
@@ -1007,7 +1089,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
     fclose(source_asm);
 
     DCF = DC;
-    printf("remember you did not use DCF %d", DCF);
+    // printf("remember you did not use DCF %d", DCF);
     ICF = IC;
 
     tmp = the_label_list;

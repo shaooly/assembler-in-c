@@ -3,8 +3,8 @@
 //
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
 #include <ctype.h>
+#include <string.h>
 #include "preasm.h"
 #include "firstpassage.h"
 
@@ -94,9 +94,8 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
                 exists_error = 1;
             }
         }
-        for (i = 0; line[i] == ' ' || (int)line[i] == '\t'; i++) {} // advance i to the first non tab or space char
-        strncpy(line_for_tokenisation, &line[i],LINE_LENGTH);
-        first_word = strtok(line_for_tokenisation, " \t");
+        strncpy(line_for_tokenisation, line,LINE_LENGTH);
+        first_word = strtok(line_for_tokenisation, " \t\n");
         if (first_word == NULL) { // empty line
             IC++;
             continue;

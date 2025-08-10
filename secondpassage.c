@@ -230,33 +230,24 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     // build source files
 
     len = strlen(original_argv);
-    printf("crashed here\n");
 
-    object_file_name = malloc(len + 4); /* + 3 for the .obj */
+    object_file_name = malloc(len + 4); /* + 4 for the .ob */
     strcpy(object_file_name, original_argv);
     strcat(object_file_name, ".ob");
     object_file = fopen(object_file_name, "w");
-    printf("maybe here");
     free(object_file_name);
-    printf("not\n");
     tmp1 = binary_line_list;
     while (tmp1 != NULL) {
         int j;
-        for (j = 0; j<5; j++) {
-            if (tmp1->words[j] != 0) {
-                char *base4_instruction = make_yihoodi_number(tmp1->words[j], 5);
-                char *base4_address = make_yihoodi_number(tmp1->IC + j, 4);
-                fprintf(object_file, "%s", base4_address);
-                fprintf(object_file, "\t");
-                fprintf(object_file, "%s", base4_instruction);
-                fprintf(object_file, "\n");
-                printf("failed here: ");
-                free(base4_address);
-                printf("not really\n");
-
-                free(base4_instruction);
-
-            }
+        for (j = 0; j< tmp1->L; j++) {
+           char *base4_instruction = make_yihoodi_number(tmp1->words[j], 5);
+           char *base4_address = make_yihoodi_number(tmp1->IC + j, 4);
+           fprintf(object_file, "%s", base4_address);
+           fprintf(object_file, "\t");
+           fprintf(object_file, "%s", base4_instruction);
+           fprintf(object_file, "\n");
+           free(base4_address);
+           free(base4_instruction);
         }
         tmp1 = tmp1->next;
     }
@@ -290,7 +281,7 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     if (exists_entry) {
         size_t len = strlen(original_argv);
         FILE *entry_file;
-        char *entry_file_name = malloc(len + 4); /* + 4 for the .ent */
+        char *entry_file_name = malloc(len + 5); /* + 5 for the .ent + \0 */
         label_list *tmp2;
         strcpy(entry_file_name, original_argv);
         strcat(entry_file_name, ".ent");
@@ -312,6 +303,7 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
 
     }
     free_all(the_label_list, binary_line_list, macro_table);
+    printf("finished building the object file succesfuly!\n");
     fclose(source_asm);
     // build_source_files // 8
 }
