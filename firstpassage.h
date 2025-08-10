@@ -3,6 +3,7 @@
 
 #ifndef FIRSTPASSAGE_H
 #define FIRSTPASSAGE_H
+#include "preasm.h"
 
 typedef struct label_list{
     int value;
@@ -41,8 +42,9 @@ typedef struct binary_line {
 
 
 
-void free_all(label_list *list, binary_line *line_to_free);
+void free_all(label_list *list, binary_line *line_to_free, macro_Linked_list *macro_table);
 void print_binary(unsigned short number);
+void first_passage(macro_Linked_list *macro_list, char *og_file_name, char *original_argv);
 
 extern int memory[256];
 extern int memory_pointer;

@@ -25,8 +25,6 @@
 #define REGISTER_SOURCE_PADDING 6
 #define REGISTER_DEST_PADDING 2
 
-int memory_pointer = 0;  // define memory pointer probably will change it later
-int memory[256] = {0};
 
 int is_null_terminated(const char *str, int max_len) {
     int i;
@@ -85,7 +83,7 @@ int number_of_psikim(char *line) {
 }
 
 
-int name_valid(char *name, int LC, int *error) {
+int label_name_valid(char *name, int LC, int *error) {
     int i = 0;
     const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne",
         "jsr", "red", "prn", "rts", "stop", "mcro", "mcroend"};
@@ -143,7 +141,7 @@ int is_symbol(char first_word[LINE_LENGTH], int *weird_flag, int LC, int *error)
     int i = 0;
     char *possible_instructions[5] = {".data", ".string", ".mat", ".entry", ".extern"};
     if (first_word[strlen(first_word) - 1] == ':') {
-        if (name_valid(first_word, LC, error)) {
+        if (label_name_valid(first_word, LC, error)) {
             return 1;
         }
     }
@@ -254,10 +252,10 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
         }
     }
     if (strcmp(data_type, ".data") == 0) { // if contaings numbers and such
-        while (i < strlen(full_data)+1) {
+        while (i < (int)strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
-                (full_data[i] == ',' && i + 1 == strlen(full_data)) // psik the last :O
+                (full_data[i] == ',' && i + 1 == (int) strlen(full_data)) // psik the last :O
                 ) {
                 *error = 1;
                 fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", LC);
@@ -341,10 +339,10 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             word_count += first_number * second_number;
         }
         i = 6;
-        while (i<strlen(full_data)+1) {
+        while (i<(int)strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
-                (full_data[i] == ',' && i + 1 == strlen(full_data)) // psik the last :O
+                (full_data[i] == ',' && i + 1 == (int)strlen(full_data)) // psik the last :O
                 ) {
                 *error = 1;
                 fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", LC);
@@ -421,7 +419,8 @@ int analyze_matrix(char *op, char *first_bracket, char *second_bracket, int *err
         return 1;
     }
     if (catch > 3) {
-        printf("caught");
+        *error = 1;
+        fprintf(stderr, "somethings bad with the matrixes");
     }
     return 0;
 }
@@ -467,7 +466,7 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
     // in this case, the first operand is not a matrix, direct, or register.
     // there are two possible scenarios - it's a label or it's junk
     // for now, let's assume it's a label and in the second maavar we will check if it's ok or not
-    if (name_valid(operand, LC, error)){
+    if (label_name_valid(operand, LC, error)){
         *operand_type = DIRECT_CODE;
         return 1; // in the case of a label
     }
@@ -480,7 +479,7 @@ int analyze_operands(char *instruction, char *first_op, char *second_op, int *so
     int *error, int LC) {
     int L = 1;
     int found_register = 0; // because we want to make sure we only add one word for registers (in case there are two)
-
+    printf("remember to add the check from the first note page! %s", instruction);
     // if command with one op
     if (!second_op) {
         source_mion = dest_mion;
@@ -772,7 +771,9 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
 
 }
 
-void free_all(label_list *list, binary_line *line_to_free) {
+void free_all(label_list *list, binary_line *line_to_free, macro_Linked_list *macro_table) {
+    macro_Linked_list* iteratepoint;
+    macro_Linked_list* trmp;
     while (line_to_free != NULL) {
         binary_line *tmp = line_to_free->next;
         int i;
@@ -801,10 +802,24 @@ void free_all(label_list *list, binary_line *line_to_free) {
     }
     free(list);
 
+    iteratepoint = macro_table;
+    while (iteratepoint->first_instruction != NULL) {
+        Linked_List* iterate_linked = iteratepoint->first_instruction;
+        while (iterate_linked!=NULL) {
+            Linked_List* temp = iterate_linked->next_instruction;
+            free(iterate_linked);
+            iterate_linked = temp;
+        }
+        trmp = iteratepoint->next_macro;
+        free(iteratepoint);
+        iteratepoint = trmp;
+    }
+    free(iteratepoint); // free the final "NULL" node malloced to null pointers :)
+
 
 }
 
-int main() {
+void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *original_argv) {
     int DC = 0;
     int IC = 100;
     int LC = 1; // line counter haha
@@ -820,8 +835,7 @@ int main() {
     label_list *tmp;
     binary_line *instructions_iter;
     char line[LINE_LENGTH];
-
-    FILE *source_asm = fopen("postpre.asm", "r");
+    FILE *source_asm = fopen(post_file_name, "r");
     label_list* the_label_list = malloc(sizeof(label_list));
     binary_line* instructions_in_binary = malloc(sizeof(binary_line));
     // define empty head
@@ -842,8 +856,6 @@ int main() {
     }
 
     instructions_iter = instructions_in_binary;
-
-
 
     while (fgets(line, LINE_LENGTH, source_asm) && !exists_error) {
         char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
@@ -988,13 +1000,14 @@ int main() {
     }
 
     if (exists_error) { // 17
-        free_all(the_label_list, instructions_in_binary);
+        free_all(the_label_list, instructions_in_binary, macro_list);
         fclose(source_asm);
         exit(1);
     }
     fclose(source_asm);
 
     DCF = DC;
+    printf("remember you did not use DCF %d", DCF);
     ICF = IC;
 
     tmp = the_label_list;
@@ -1006,6 +1019,5 @@ int main() {
         }
         tmp = tmp->next_label;
     }
-    second_passage(instructions_in_binary, the_label_list, DCF, ICF);
-    return 0;
+    second_passage(instructions_in_binary, the_label_list, ICF, macro_list, post_file_name, original_argv);
 }
