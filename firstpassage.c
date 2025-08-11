@@ -263,7 +263,6 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
         }
     }
     if (strcmp(data_type, ".data") == 0) { // if contaings numbers and such
-
         while (i < (int)strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
@@ -276,7 +275,6 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             // new number and we know not two psikim next to each other
             if (full_data[i] == ',' || full_data[i] == '\0' || full_data[i] == '\n') {
                 if (full_data[i] != '\0') {
-
                     memory[memory_pointer] = num * sign;
                     memory_pointer++;
                     word_count++; // new mila
@@ -338,7 +336,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             }
             i++;
         }
-        memory[memory_pointer - 1] = '\0';
+        memory[memory_pointer - 1] = (unsigned char)'\0';
         // now i is the length of the string so i-1 is supposed to be "
         if (full_data[0] == '"' && full_data[i-1] == '"') { // check if valid corners
             word_count += i - 1; // minus two quotes + '\0'
@@ -348,11 +346,12 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
     if (strcmp(data_type, ".mat") == 0) {
         int first_number;
         int second_number;
+        int memory_pointer_before = memory_pointer;
         if (sscanf(full_data, "[%d][%d]", &first_number, &second_number) == 2) {
             word_count += first_number * second_number;
         }
         i = 6;
-        printf("the full data is: %s", full_data);
+        printf("accounted %d amount \n", word_count);
         while (i < (int)strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
@@ -364,15 +363,16 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             }
             // new number and we know not two psikim next to each other
             if (full_data[i] == ',' || full_data[i] == '\0' || full_data[i] == '\n') {
-                if (full_data[i] != '\0') {
+                printf("added %d to memory\n", num * sign);
+
+                if (appeared_numbers) {
                     memory[memory_pointer] = num * sign;
-                    printf("added number %d to the memory\n", num * sign);
                     memory_pointer++;
-                    sign = 1;
-                    num = 0;
-                    appeared_space = 0;
-                    appeared_numbers = 0;
                 }
+                sign = 1;
+                num = 0;
+                appeared_space = 0;
+                appeared_numbers = 0;
             }
             // make sure the plus sign only appears next to a number or at the start of the expression :)
             // this is a weird expression but it just answers the requirement of this
@@ -410,7 +410,16 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             }
         i++;
         }
-        printf("stopped when i: %d and full_data[i] is: %d", i, full_data[i-2]);
+        // this means that not all slots have been filled. for example
+        // allocating a matrix with 4 spaces but only giving 2 parameters (or zero)
+        if (memory_pointer - memory_pointer_before < word_count) {
+            int j;
+            for (j = memory_pointer; j < memory_pointer_before + word_count+ 1; j++) {
+                printf("added to memory\n");
+                memory[j] = 0;
+            }
+            memory_pointer += memory_pointer - memory_pointer_before + word_count;
+        }
         // printf("I would've added %d words\n", word_count);
     }
     //update DC
@@ -555,8 +564,8 @@ unsigned short make_binary_line(char *instruction, int *first_op_type, int *seco
 
     // OPCODE
     // the idea with this is to make the index of each instruction the number and then transform i to binary
-    const char *known_instructions[16] = {"mov", "cmp", "add", "sub", "not", "clr", "lea", "inc", "dec", "jmp", "bne",
-        "red", "prn", "jsr", "rts", "stop"};
+    const char *known_instructions[16] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne",
+        "jsr", "red", "prn", "rts", "stop"};
     for (i = 0; i<16; i++) {
         if (strcmp(instruction, known_instructions[i]) == 0) {
             break;
@@ -650,10 +659,14 @@ int contains_in_list(const char *str1, const char **list, int const size) {
 // this function will hopefully catch all the cases where an instruction requires n operands and make sure
 // the call for the instruction satisfies the operand requirements
 // returns 1 if call is invalid and 0 if valid
-int invalid_call(char *instruction, char *first_op, char *second_op) {
+int invalid_call(char *instruction, char *first_op, char *second_op, int *source_mion, int *dest_mion) {
+
     const char *two_operands[5] = {"mov", "cmp", "add", "sub", "lea"};
     const char *single_operand[9] = { "clr", "not", "inc", "dec", "jmp", "bne", "jsr", "red", "prn"};
     const char *no_operands[2] = {"rts", "stop"};
+
+    const char *dest123[12] = { "clr", "not", "inc", "dec", "jmp", "bne", "jsr", "red", "mov", "add", "sub", "lea"};
+
 
     // check two operands first
     if (contains_in_list(instruction, two_operands, 5)) { // this means the instruction should have two operands
@@ -675,6 +688,27 @@ int invalid_call(char *instruction, char *first_op, char *second_op) {
         return 1;
     }
 
+    /* expanding a bit on this function
+     using page 47 from the book we can see the table that contains valid operations you can do with operands !
+     i created the lists above according to the table and i will check them with for loops now here
+
+     functions that take no source operands are always single operands so it caught it earlier
+     also, i'm not checking for their source mov, cmp, add, sub. that's because they accept all types as source
+
+
+     another note: i actually wrote this 6 line introduction to this note before i wrote the code but  it happened
+     to just be a couple of lines haha */
+
+
+    if (strcmp(instruction, "lea") == 0 && (*source_mion == 0 || *source_mion == 3)) {
+        return 1; // invalid call
+    }
+    if (contains_in_list(instruction, dest123, 12)) {
+        /* this means operand can't have dest mion equal to 0*/
+        if (*dest_mion == 0) {
+            return 1; // invalid call
+        }
+    }
     return 0;
 }
 
@@ -717,7 +751,7 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
                             dest_mion, error, LC); // 13 dest and source nonsense fix it in the original function
     *line_binary_representation = make_binary_line(instruction, source_mion,
         dest_mion); // 14
-    if (invalid_call(instruction, first_op, second_op)) { // this means the call is invalid
+    if (invalid_call(instruction, first_op, second_op, source_mion, dest_mion)) { // this means the call is invalid
         *error = 1;
         fprintf(stderr, "Error. The number of operands for the command in line %d is bad", LC);
     }
@@ -742,13 +776,16 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         *immediate_word = make_word(first_op);
         new_node->words[1] = *immediate_word;
     }
-
+    if (strcmp(instruction, "cmp") == 0 && *dest_mion == 0) {
+        *immediate_word = make_word(second_op);
+        new_node->words[2] = *immediate_word;
+    }
     // very interesting check i want to do and didn't realise when i started this
     // check if the destination operand is 0!
-    if (*dest_mion == 0 && second_op != NULL) {
-        *error = 1;
-        fprintf(stderr, "Error. Destination operand can't be immediate! %d ", LC);
-    }
+    // if (*dest_mion == 0 && second_op != NULL) {
+    //     *error = 1;
+    //     fprintf(stderr, "Error. Destination operand can't be immediate! %d ", LC);
+    // }
 
     if (*source_mion == 2) {
         analyze_matrix(first_op, first_bracket, second_bracket, error);
@@ -956,15 +993,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
         else { // jert
             second_word = strtok(NULL, " ,\t\n");
         }
-        third_word = 0;
-        if (second_word) {
-            if (strcmp(second_word, ".string") == 0 || strcmp(second_word, ".data") == 0) {
-                third_word = strtok(NULL, "");
-            }
-            else {
-                third_word = strtok(NULL, " ,\t\n");
-            }
-        }
+
 
         // this is for the case of wasting space in assembly and defining a line like this:
         // .data "somedata"
@@ -973,6 +1002,17 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
         weird_symbol_flag = 0; // in case there is a "weird" symbol (data wasting space for example .data)
 
         exists_label = is_symbol(first_word, &weird_symbol_flag, LC, macro_list, &exists_error);
+        third_word = 0;
+        if (!weird_symbol_flag) {
+            if (second_word) {
+                if (strcmp(second_word, ".string") == 0 || strcmp(second_word, ".data") == 0) {
+                    third_word = strtok(NULL, "");
+                }
+                else {
+                    third_word = strtok(NULL, " ,\t\n");
+                }
+            }
+        }
         if (is_data_storing(first_word, second_word)) { // 5
             if (exists_label) {
                 // in the case that the decleration is only .data, we will call without the name (first_word)
@@ -982,6 +1022,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
                 }
                 else {
                     insert_to_label(the_label_list, first_word, "data", &exists_error, DC); // 6
+
                     identify_data(second_word, third_word, &DC, &exists_error, LC); // 7
                 }
             }
