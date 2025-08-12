@@ -175,11 +175,12 @@ int is_symbol(char first_word[LINE_LENGTH], int *weird_flag, int LC, macro_Linke
 int is_instruction(char first_word[LINE_LENGTH], int LC, int *error) {
     const char *known_instructions[20] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne", "jsr",
         "red", "prn", "rts", "stop", "mcro", "mcroend", ".entry", ".extern"};
-
-    int i = 0;
-    for (i = 0; i < 20; i++) {
-        if (strcmp(first_word, known_instructions[i]) == 0) {
-            return 1;
+    if (first_word != NULL) {
+        int i = 0;
+        for (i = 0; i < 20; i++) {
+            if (strcmp(first_word, known_instructions[i]) == 0) {
+                return 1;
+            }
         }
     }
     fprintf(stderr, "Error: unknown instruction '%s' in line %d. \n", first_word, LC);
@@ -260,6 +261,17 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
         while (data != NULL) {
             strcat(full_data, data);
             data = strtok(NULL, "");
+        }
+    }
+    // clear weird spaces after the data the could screw with .string
+    if (strcmp(data_type, ".string") == 0) {
+        int len = (int) strlen(full_data);
+        int w;
+        for (w = len - 1; w >= 0; w--) {
+            if (full_data[w] == '"') {
+                full_data[w + 1] = '\0';
+                break;
+            }
         }
     }
     if (strcmp(data_type, ".data") == 0) { // if contaings numbers and such
@@ -351,7 +363,6 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             word_count += first_number * second_number;
         }
         i = 6;
-        printf("accounted %d amount \n", word_count);
         while (i < (int)strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
@@ -363,8 +374,6 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             }
             // new number and we know not two psikim next to each other
             if (full_data[i] == ',' || full_data[i] == '\0' || full_data[i] == '\n') {
-                printf("added %d to memory\n", num * sign);
-
                 if (appeared_numbers) {
                     memory[memory_pointer] = num * sign;
                     memory_pointer++;
@@ -415,7 +424,6 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
         if (memory_pointer - memory_pointer_before < word_count) {
             int j;
             for (j = memory_pointer; j < memory_pointer_before + word_count+ 1; j++) {
-                printf("added to memory\n");
                 memory[j] = 0;
             }
             memory_pointer += memory_pointer - memory_pointer_before + word_count;
@@ -881,7 +889,6 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         (*binary_list)->next = new_node;
         *binary_list = new_node;
     }
-
 }
 
 void free_all(label_list *list, binary_line *line_to_free, macro_Linked_list *macro_table) {
@@ -971,7 +978,8 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
 
     instructions_iter = instructions_in_binary;
 
-    while (fgets(line, LINE_LENGTH, source_asm) && !exists_error) {
+    while (fgets(line, LINE_LENGTH, source_asm)) {
+        printf("crashed on line %d\n", LC);
         char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
         strncpy(line_for_tokenisation, line,LINE_LENGTH);
         first_word = strtok(line_for_tokenisation, " \t\n");
@@ -1013,7 +1021,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
                 }
             }
         }
-        if (is_data_storing(first_word, second_word)) { // 5
+        if (second_word != NULL && is_data_storing(first_word, second_word)) { // 5
             if (exists_label) {
                 // in the case that the decleration is only .data, we will call without the name (first_word)
 
@@ -1055,7 +1063,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
 
             if (exists_label) {
                 insert_to_label(the_label_list, first_word, "code", &exists_error, IC); // 11
-                if (is_instruction(second_word, LC, &exists_error)) { // 12
+                if (second_word != NULL && is_instruction(second_word, LC, &exists_error)) { // 12
                     // check for stop or rts
                     char *forth_word = strtok(NULL, " ,\t\n");
                     if ((strcmp(second_word, "stop") == 0 || strcmp(second_word, "rts") == 0) && third_word == NULL) {
@@ -1096,9 +1104,11 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
                 else {
                     if (third_word == NULL) {
                         char copy_second[LINE_LENGTH]; // in case no space between the psikim
-                        strncpy(copy_second, second_word,LINE_LENGTH);
-                        second_word = strtok(copy_second, " ,");
-                        third_word = strtok(NULL, " ,");
+                        if (second_word != NULL) {
+                            strncpy(copy_second, second_word,LINE_LENGTH);
+                            second_word = strtok(copy_second, " ,");
+                            third_word = strtok(NULL, " ,");
+                        }
                     }
                     analyze_and_build(&L, &line_binary_representation, &immediate_word, first_word, second_word,
                                             third_word, &source_mion, &dest_mion, &exists_error, LC, &instructions_iter, IC);
@@ -1123,6 +1133,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
     }
 
     if (exists_error) { // 17
+        // fflush(stderr);
         free_all(the_label_list, instructions_in_binary, macro_list);
         fclose(source_asm);
         exit(1);

@@ -10,6 +10,9 @@
 
 int contains(macro_Linked_list* macro_table, char* command_name) {
     macro_Linked_list* iteratepoint;
+    if (command_name == NULL) {
+        return 0;
+    }
     if (command_name[strlen(command_name) - 1] == '\n') {
         command_name[strlen(command_name) - 1] = '\0'; // remove newline if there is any
     }
@@ -106,13 +109,21 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
         }
 
         second_word = strtok(NULL, " \t\n");
-        third_word = strtok(NULL, " \t\n");
+        third_word = NULL;
+        if (second_word != NULL) {
+            third_word = strtok(NULL, " \t\n");
+        }
         // this isn't such a good way to parse the instructions
         // in the actual not in the pre i will do it differently
         // check if first word of the instruction is mcro
         // check if "third" word is null (meaning the instruction is mcro {name}\n or '\0')
         // handle space after name (is ok)
         if (strcmp(first_word, "mcro") == 0 && (third_word == NULL || third_word[0] == '\n')) { //
+            if (second_word == NULL) {
+                fprintf(stderr, "yo bro you got an error you defined a macro without a name");
+                exists_error = 1;
+                break;
+            }
             macro_Linked_list *to_add;
             if (name_valid(second_word, IC) == 0) {
                 exists_error = 1;
@@ -212,6 +223,7 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
             iteratepoint = trmp;
         }
         free(iteratepoint); // free the final "NULL" node malloced to null pointers :)
+        fflush(stderr);
         exit(1);
     }
     // leaked so much memory before this haha
@@ -257,6 +269,7 @@ int main(int argc, char *argv[]) {
         first_passage(macro_table, post_file_name, argv[j]);
         free(post_file_name);
         free(file_name);
+
     }
     return 0;
 }
