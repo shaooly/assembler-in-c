@@ -26,6 +26,8 @@
 #define REGISTER_DEST_PADDING 2
 
 
+
+
 int is_null_terminated(const char *str, int max_len) {
     int i;
     if (str == NULL) {
@@ -97,8 +99,8 @@ int label_name_valid(char *name, int LC, macro_Linked_list *macro_table, int *er
     // check label name is not a valid macro name
 
 
-    const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne",
-        "jsr", "red", "prn", "rts", "stop", "mcro", "mcroend"};
+    const char *known_instructions[18] = {"mov:", "cmp:", "add:", "sub:", "lea:", "clr:", "not:", "inc:", "dec:",
+        "jmp:", "bne:", "jsr:", "red:", "prn:", "rts:", "stop:", "mcro:", "mcroend:"};
 
     if (strlen(name) > 30) {
         fprintf(stderr, "Error in line %d. The label name is longer than 30 chars.\n", LC);
@@ -132,16 +134,11 @@ int label_name_valid(char *name, int LC, macro_Linked_list *macro_table, int *er
         name[strlen(name) - 1] = '\0'; // remove newline if there is any
     }
     for (i = 0; i < 18; i++) {
-        if (is_null_terminated(name, LINE_LENGTH)) {
-            if (strcmp(name, known_instructions[i]) == 0) { // if label name is known instruction name.
-                fprintf(stderr, "Error in line %d. The label name is a known instruction name (%s).", LC,
-                    known_instructions[i]);
-                *error = 1;
-                return 0;
-            }
-        }
-        else {
-            printf("hi! bad code! you should null terminate the string bro");
+        if (strcmp(name, known_instructions[i]) == 0) { // if label name is known instruction name.
+            fprintf(stderr, "Error in line %d. The label name is a known instruction name (%s).\n", LC,
+                known_instructions[i]);
+            *error = 1;
+            return 0;
         }
     }
     return 1;
@@ -192,11 +189,13 @@ int is_instruction(char first_word[LINE_LENGTH], int LC, int *error) {
 int is_data_storing(char first_word[LINE_LENGTH], char second_word[LINE_LENGTH]) {
     char *data_storers[3] = {".data", ".string", ".mat"};
     int i = 0;
-    if (first_word[strlen(first_word) - 1] == ':') {
-        int i = 0;
-        for (i = 0; i < 3; i++) {
-            if (strcmp(second_word, data_storers[i]) == 0) {
-                return 1;
+    if (second_word != NULL) {
+        if (first_word[strlen(first_word) - 1] == ':') {
+            int j = 0;
+            for (j = 0; j < 3; j++) {
+                if (strcmp(second_word, data_storers[j]) == 0) {
+                    return 1;
+                }
             }
         }
     }
@@ -239,7 +238,7 @@ void insert_to_label(label_list *list, char label_name[LINE_LENGTH], char *label
         tmp->next_label = to_add;
         return;
     }
-    fprintf(stderr, "couldn't insert into error");
+    fprintf(stderr, "couldn't insert into error\n");
     *error = 1;
 }
 
@@ -263,6 +262,10 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             data = strtok(NULL, "");
         }
     }
+    if (strcmp(full_data, "") == 0) {
+        *error = 1;
+        fprintf(stderr, "Why no data? on line %d\n", LC);
+    }
     // clear weird spaces after the data the could screw with .string
     if (strcmp(data_type, ".string") == 0) {
         int len = (int) strlen(full_data);
@@ -272,13 +275,24 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
                 full_data[w + 1] = '\0';
                 break;
             }
+            if (full_data[w] != ' ' && full_data[w] != '\n') {
+                *error = 1;
+                fprintf(stderr, "Bad quatiotions marks on line %d\n", LC);
+
+            }
+        }
+        len = (int) strlen(full_data);
+        if (full_data[0] != '"' || full_data[len - 1] != '"') {
+            *error = 1;
+            fprintf(stderr, "Bad quatiotions marks on line %d\n", LC);
         }
     }
     if (strcmp(data_type, ".data") == 0) { // if contaings numbers and such
-        while (i < (int)strlen(full_data)+1) {
+        int len = (int)strlen(full_data);
+        while (i < len+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
-                (full_data[i] == ',' && i + 1 == (int) strlen(full_data)) // psik the last :O
+                (full_data[i] == ',' && i + 2 == len) // psik the last :O
                 ) {
                 *error = 1;
                 fprintf(stderr, "You have a problem with your commas :( it's on line %d. Fix it.\n", LC);
@@ -311,7 +325,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             }
             else if ((full_data[i] < '0' || full_data[i] > '9') && full_data[i] != '+' && full_data[i] != '-') {
                 *error = 1;
-                fprintf(stderr, "You have something that isn't a number in line %d", LC);
+                fprintf(stderr, "You have something that isn't a number in line %d\n", LC);
             }
             else if (full_data[i] == '-') {
                 sign = -1;
@@ -353,6 +367,10 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
         if (full_data[0] == '"' && full_data[i-1] == '"') { // check if valid corners
             word_count += i - 1; // minus two quotes + '\0'
             // printf("I would've added %d words\n", word_count);
+        }
+        else {
+            *error = 1;
+            fprintf(stderr, "You don't have quatioation marks on the string in line %d\n", LC);
         }
     }
     if (strcmp(data_type, ".mat") == 0) {
@@ -398,7 +416,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             }
             else if ((full_data[i] < '0' || full_data[i] > '9') && full_data[i] != '+' && full_data[i] != '-') {
                 *error = 1;
-                fprintf(stderr, "You have something that isn't a number in line %d", LC);
+                fprintf(stderr, "You have something that isn't a number in line %d\n", LC);
             }
             else if (full_data[i] == '-') {
                 sign = -1;
@@ -471,7 +489,7 @@ int analyze_matrix(char *op, char *first_bracket, char *second_bracket, int *err
     }
     if (catch > 3) {
         *error = 1;
-        fprintf(stderr, "somethings bad with the matrixes");
+        fprintf(stderr, "somethings bad with the matrixes\n");
     }
     return 0;
 }
@@ -485,7 +503,8 @@ int analyze_matrix(char *op, char *first_bracket, char *second_bracket, int *err
 int words_per_operand(char *operand, int *operand_type, int *error, int *register_flag, int LC) {
     // check if immediate
     // using fillers for the anlyze matrix function
-    char filler[LINE_LENGTH];
+    char first_bracket[LINE_LENGTH];
+    char second_bracket[LINE_LENGTH];
     char matrix_tmp[LINE_LENGTH];
     if (operand[0] == '#') {
         if (is_number(operand)) {
@@ -494,25 +513,37 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
             return 1;
         }
         *error = 1;
-        fprintf(stderr, "You have something that isn't a number in line %d", LC);
+        fprintf(stderr, "You have something that isn't a number in line %d\n", LC);
         return 0;
     }
     // check if register
-    if (operand[0] == 'r' && is_register_range(operand[1])) {
-        if (*register_flag == 0) {
-            *register_flag = 1;
+    if (operand[0] == 'r' && (operand[2] == '\0' || operand[2] == '\n')) {
+        if (is_register_range(operand[1])) {
+            if (*register_flag == 0) {
+                *register_flag = 1;
+                *operand_type = REGISTER_CODE;
+                //printf("line number %d added 1 word\n", LC);
+                return 1;
+            }
             *operand_type = REGISTER_CODE;
-            //printf("line number %d added 1 word\n", LC);
-            return 1;
+            return 0;
         }
-        *operand_type = REGISTER_CODE;
-        return 0;
     }
 
     strcpy(matrix_tmp, operand);
-    if (analyze_matrix(matrix_tmp, filler, filler, error)) { // idk if this is common c practice
-        *operand_type = MATRIX_CODE;
-        return 2;
+    if (analyze_matrix(matrix_tmp, first_bracket, second_bracket, error)) {
+        // idk if this is common c practice
+        size_t first_len = strlen(first_bracket);
+        size_t second_len = strlen(second_bracket);
+        if (first_len == 2 && second_len == 2 && first_bracket[0] == 'r' && second_bracket[0] == 'r') {
+            if (is_register_range(first_bracket[1]) && is_register_range(second_bracket[1])) {
+                *operand_type = MATRIX_CODE;
+                return 2;
+            }
+        }
+        fprintf(stderr, "You have something bad with the matrixes on line %d\n", LC);
+        *error = 1;
+        return 0; // this doesn't really matter
     }
     // in this case, the first operand is not a matrix, direct, or register.
     // there are two possible scenarios - it's a label or it's junk
@@ -520,11 +551,12 @@ int words_per_operand(char *operand, int *operand_type, int *error, int *registe
     // i'm passing NULL here for macro table not the end of the world if it doesn't pass because in the label resolution
     // it will fall so i'm not concernd
     if (label_name_valid(operand, LC, NULL, error)){
+
         *operand_type = DIRECT_CODE;
         return 1; // in the case of a label
     }
     *error = 1;
-    fprintf(stderr, "bad operand");
+    fprintf(stderr, "bad operand on line %d\n", LC);
     return 0;
 }
 
@@ -675,6 +707,15 @@ int invalid_call(char *instruction, char *first_op, char *second_op, int *source
 
     const char *dest123[12] = { "clr", "not", "inc", "dec", "jmp", "bne", "jsr", "red", "mov", "add", "sub", "lea"};
 
+    if (strcmp(instruction, "lea") == 0 && (*source_mion == 0 || *source_mion == 3)) {
+        return 1; // invalid call
+    }
+    if (contains_in_list(instruction, dest123, 12)) {
+        /* this means operand can't have dest mion equal to 0*/
+        if (*dest_mion == 0) {
+            return 1; // invalid call
+        }
+    }
 
     // check two operands first
     if (contains_in_list(instruction, two_operands, 5)) { // this means the instruction should have two operands
@@ -707,16 +748,6 @@ int invalid_call(char *instruction, char *first_op, char *second_op, int *source
      another note: i actually wrote this 6 line introduction to this note before i wrote the code but  it happened
      to just be a couple of lines haha */
 
-
-    if (strcmp(instruction, "lea") == 0 && (*source_mion == 0 || *source_mion == 3)) {
-        return 1; // invalid call
-    }
-    if (contains_in_list(instruction, dest123, 12)) {
-        /* this means operand can't have dest mion equal to 0*/
-        if (*dest_mion == 0) {
-            return 1; // invalid call
-        }
-    }
     return 0;
 }
 
@@ -761,7 +792,8 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         dest_mion); // 14
     if (invalid_call(instruction, first_op, second_op, source_mion, dest_mion)) { // this means the call is invalid
         *error = 1;
-        fprintf(stderr, "Error. The number of operands for the command in line %d is bad", LC);
+        fprintf(stderr, "Error. The number of operands for the command in line %d is bad\n", LC);
+        return;
     }
     // 15
     new_node->LC = LC;
@@ -897,11 +929,11 @@ void free_all(label_list *list, binary_line *line_to_free, macro_Linked_list *ma
     while (line_to_free != NULL) {
         binary_line *tmp = line_to_free->next;
         int i;
-        printf("\n");
+        // printf("\n");
 
-        for (i = 0; i<5; i++) {
-            print_binary(line_to_free->words[i]);
-        }
+        // for (i = 0; i<5; i++) {
+        //     print_binary(line_to_free->words[i]);
+        // }
 
         if (strcmp(line_to_free->labels[0], "") != 0) {
             free(line_to_free->labels[0]);
@@ -909,33 +941,62 @@ void free_all(label_list *list, binary_line *line_to_free, macro_Linked_list *ma
         if (strcmp(line_to_free->labels[1], "") != 0) {
             free(line_to_free->labels[1]);
         }
-        printf("%d", line_to_free->LC);
+        // printf("%d", line_to_free->LC);
         free(line_to_free);
         line_to_free = tmp;
     }
     free(line_to_free);
-    printf("\n");
+    // printf("\n");
     while (list->next_label != NULL) {
         label_list *tmp = list->next_label;
-        printf("%s | %d | %s\n", tmp->label_name, tmp->value, tmp->label_type);
+        // printf("%s | %d | %s\n", tmp->label_name, tmp->value, tmp->label_type);
         free(list);
         list = tmp;
     }
     free(list);
 
     iteratepoint = macro_table;
-    while (iteratepoint->first_instruction != NULL) {
-        Linked_List* iterate_linked = iteratepoint->first_instruction;
-        while (iterate_linked!=NULL) {
-            Linked_List* temp = iterate_linked->next_instruction;
-            free(iterate_linked);
-            iterate_linked = temp;
+    if (iteratepoint != NULL) {
+        while (iteratepoint->first_instruction != NULL) {
+            Linked_List* iterate_linked = iteratepoint->first_instruction;
+            while (iterate_linked!=NULL) {
+                Linked_List* temp = iterate_linked->next_instruction;
+                free(iterate_linked);
+                iterate_linked = temp;
+            }
+            trmp = iteratepoint->next_macro;
+            free(iteratepoint);
+            iteratepoint = trmp;
         }
-        trmp = iteratepoint->next_macro;
-        free(iteratepoint);
-        iteratepoint = trmp;
+        free(iteratepoint); // free the final "NULL" node malloced to null pointers :)
+
     }
-    free(iteratepoint); // free the final "NULL" node malloced to null pointers :)
+}
+
+
+void initial_error_checks(char *line, int *error, int LC) {
+    // now in hindsight, i believe doing the entire project like this would've been
+    // much better but i guess it's still ok
+    // the need for this function was very apparent i'm sorry i didn't include this earlier on
+    char line_without_spaces[LINE_LENGTH];
+    int i;
+    int z = 0;
+    size_t len;
+    for (i = 0; i < LINE_LENGTH && line[i] != '\0'; i++) {
+        if (line[i] != ' ' && line[i] != '\t' && line[i] != '\n') {
+            line_without_spaces[z] = line[i];
+            z++;
+        }
+    }
+    len = strlen(line_without_spaces);
+
+    // check for two psikim next to eachother
+    for (i = 0; i < len - 1; i++) {
+        if (line_without_spaces[i] == ',' && line_without_spaces[i + 1] == ',') {
+            *error = 1;
+            fprintf(stderr, "Error on line %d. Two psikim next to each other shouldn't be allowed sory.\n", LC);
+        }
+    }
 
 
 }
@@ -979,7 +1040,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
     instructions_iter = instructions_in_binary;
 
     while (fgets(line, LINE_LENGTH, source_asm)) {
-        printf("crashed on line %d\n", LC);
+        initial_error_checks(line, &exists_error, LC);
         char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
         strncpy(line_for_tokenisation, line,LINE_LENGTH);
         first_word = strtok(line_for_tokenisation, " \t\n");
@@ -1001,6 +1062,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
         else { // jert
             second_word = strtok(NULL, " ,\t\n");
         }
+        // printf("for the line %d the opps are first: %s;second: %s\n", LC, first_word, second_word);
 
 
         // this is for the case of wasting space in assembly and defining a line like this:
@@ -1021,7 +1083,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
                 }
             }
         }
-        if (second_word != NULL && is_data_storing(first_word, second_word)) { // 5
+        if (is_data_storing(first_word, second_word)) { // 5
             if (exists_label) {
                 // in the case that the decleration is only .data, we will call without the name (first_word)
 
@@ -1038,6 +1100,10 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
         // non-data (entry and extern) are always weird flag cases
         else if (weird_symbol_flag) { // if not data (line 8 // actually it is always here no need
             if (strcmp(first_word, ".entry") == 0) { // 9
+                if (second_word == NULL) {
+                    exists_error = 1;
+                    fprintf(stderr, "Called entry with no label on line %d\n", LC);
+                }
                 LC++;
                 continue;
             }
@@ -1046,7 +1112,13 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
             // insert_to_label(label_list *list, char label_name[LINE_LENGTH], int *error, int DC)
             if (strcmp(first_word, ".extern") == 0) {
                 // 10
-                insert_to_label(the_label_list, second_word, "external", &exists_error, 0);
+                if (second_word != NULL) {
+                    insert_to_label(the_label_list, second_word, "external", &exists_error, 0);
+                }
+                else {
+                    exists_error = 1;
+                    fprintf(stderr, "Called extern with no label on line %d\n", LC);
+                }
             }
 
         }
@@ -1092,6 +1164,10 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
                         fprintf(stderr, "Error in line %d. No psikim between operands.\n", LC);
                         exists_error = 1;
                     }
+                    if (line[strlen(line) - 2] == ',') {
+                        fprintf(stderr, "Error in line %d. Psik for the last op why?.\n", LC);
+                        exists_error = 1;
+                    }
                 }
 
 
@@ -1121,6 +1197,11 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
                     fprintf(stderr, "Error in line %d. No psikim between operands.\n", LC);
                     exists_error = 1;
                 }
+                if (line[strlen(line) - 2] == ',') {
+                    fprintf(stderr, "Error in line %d. Psik for the last op why?.\n", LC);
+                    exists_error = 1;
+                }
+
             }
             // else {
             //

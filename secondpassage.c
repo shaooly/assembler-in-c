@@ -141,6 +141,8 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     size_t len;
     char *object_file_name;
     while (fgets(line, LINE_LENGTH, source_asm)) {
+        printf("crashed on line %d\n", LC);
+
         char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
         char *second_word = 0;
         char *first_word;
