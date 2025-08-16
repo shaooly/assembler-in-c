@@ -1,6 +1,21 @@
-//
-// Created by Shauli on 30/05/2025.
-//
+/*
+ * The pre-assembler.
+ * This code handles all the macro de-macroing.
+ * The code basically scans the entire code and searches for this pattern:
+ *
+ * mcro {name}
+ * --code--
+ * mcroend
+ *
+ * Then, it searches for the name and switches the name if the entire code inside the macro.
+ * When creating the file post the pre assembler, it removes all the macro definitions and switches the name out
+ * for the actual macro definitions
+ *
+ * Author: Shaul Joseph Sasson
+ * Created: 30/05/2025
+ * Depends on preasm.h, firstpassage.h
+ *
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -8,6 +23,14 @@
 #include "preasm.h"
 #include "firstpassage.h"
 
+/*
+ * Checks if a (technically "the") macro table contains the name of the macro.
+ * Params:
+ *      macro_table - pointer to the macro linked list
+ *      command_name - the name of the macro we want to check
+ * Returns: 1 if found, 0 if not found
+ *
+ */
 int contains(macro_Linked_list* macro_table, char* command_name) {
     macro_Linked_list* iteratepoint;
     if (command_name == NULL) {
@@ -28,22 +51,29 @@ int contains(macro_Linked_list* macro_table, char* command_name) {
     return 0;
 }
 
+/*
+ * Validates a macro name by the rules.
+ * Params: name - the candidate macro name
+ *         IC   - current line number (for error reporting)
+ * Returns: 1 if valid, 0 otherwise
+ */
+
 int name_valid(char *name, int IC) {
     int i =0;
-    const char *known_instructions[18] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne", "jsr",
+    const char *known_instructions[INSTRUCTION_AMOUNT] = {"mov", "cmp", "add", "sub", "lea", "clr", "not", "inc", "dec", "jmp", "bne", "jsr",
         "red", "prn", "rts", "stop", "mcro", "mcroend"};
 
-    if (strlen(name) > 30) {
-        fprintf(stderr, "Error in line %d. The macro name is longer than 30 chars.\n", IC);
+    if (strlen(name) > MAX_MACRO_LEN) {
+        fprintf(stderr, "Error in line %d: The macro name is longer than 30 chars.\n", IC);
         return 0;
     }
     if (isalpha(name[0]) == 0) {
-        fprintf(stderr, "Error in line %d. The first char in macro name is a number.\n", IC);
+        fprintf(stderr, "Error in line %d: The first char in macro name is a number.\n", IC);
         return 0;
     }
     for (i = 0; name[i] != '\0' && name[i] != '\n'; i++) {
         if (isalnum(name[i]) == 0 && name[i] != '_') {
-            fprintf(stderr, "Error in line %d. The char in the %dth position in macro name is not alphanumeric.\n"
+            fprintf(stderr, "Error in line %d: The char in the %dth position in macro name is not alphanumeric.\n"
                 , IC, i);
             return 0;
         }
@@ -52,9 +82,9 @@ int name_valid(char *name, int IC) {
     if (name[strlen(name) - 1] == '\n') {
         name[strlen(name) - 1] = '\0'; // remove newline if there is any
     }
-    for (i = 0; i < 18; i++) {
+    for (i = 0; i < INSTRUCTION_AMOUNT; i++) {
         if (strcmp(name, known_instructions[i]) == 0) { // if macro name is known instruction name.
-            fprintf(stderr, "Error in line %d. The macro name is a known instruction name (%s).", IC,
+            fprintf(stderr, "Error in line %d: The macro name is a known instruction name (%s).", IC,
                 known_instructions[i]);
             return 0;
         }
@@ -62,11 +92,42 @@ int name_valid(char *name, int IC) {
     return 1;
 }
 
+/*
+ * Takes an instruction (technically the entire line but called instruction) and inserts it into the macro_table
+ * in the current place it's on (since we advance it with each iteration)
+ */
+
+Linked_List* insert_instruction(macro_Linked_list *macro_table, Linked_List *previous, char *line,
+    int *exists_error, int IC) {
+    Linked_List *to_add = malloc(sizeof (Linked_List));
+    memset(to_add, 0, sizeof (Linked_List));
+    if (!to_add) {
+        *exists_error = 1;
+        fprintf(stderr, "Error in line %d: Memory allocation failed\n", IC);
+        return previous;
+    }
+    strcpy(to_add->instruction, line);
+    to_add->next_instruction = NULL;
+    if (macro_table->first_instruction == NULL) {
+        macro_table->first_instruction = to_add;
+    }
+    else {
+        previous->next_instruction = to_add;
+    }
+    return to_add;
+}
+
+/*
+ * The actual pre-assembler stage.
+ * Params: filename      - input source (.as)
+ *         post_filename - output file with macros expanded
+ * Returns: pointer to the macro table.
+ */
 
 macro_Linked_list* pre_asm(char *filename, char *post_filename){
     int exists_error = 0;
     int IC = 1;
-    Linked_List* instructionpoint;
+    Linked_List* instructionpoint = NULL;
     char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
     char *first_word;
     char *second_word;
@@ -74,12 +135,12 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
     int exists_mcro;
     FILE *source_asm = fopen(filename, "r");
     FILE *post_pre_asm = fopen(post_filename, "w");
+
     char line[LINE_LENGTH];
-    int i;
     macro_Linked_list* mcropoint;
     macro_Linked_list* macro_table = malloc(sizeof(macro_Linked_list));
     if (!macro_table) {
-        fprintf(stderr, "not memory\n");
+        fprintf(stderr, "Error in line %d: not enough memory to malloc.\n", IC);
         exit(1);
     }
     memset(macro_table, 0, sizeof(macro_Linked_list)); /* valgrind yelling */
@@ -91,9 +152,9 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
     exists_mcro = 0;
     while (fgets(line, LINE_LENGTH, source_asm)) {
         // check if line is longer than the limit
-        if (strstr(line, "\n") == NULL) { // reached end of fgets count amount of chars without end line.
+        if (line[LINE_LENGTH - 1] != '\0' && line[strlen(line) - 1] != '\n') {
             if (fgetc(source_asm) != EOF) { // when last line doesn't have "\n"
-                fprintf(stderr, "Error in line %d. The instruction is longer than 80 chars.\n", IC);
+                fprintf(stderr, "Error in line %d: The instruction is longer than 80 chars.\n", IC);
                 exists_error = 1;
             }
         }
@@ -113,19 +174,24 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
         if (second_word != NULL) {
             third_word = strtok(NULL, " \t\n");
         }
-        // this isn't such a good way to parse the instructions
-        // in the actual not in the pre i will do it differently
-        // check if first word of the instruction is mcro
-        // check if "third" word is null (meaning the instruction is mcro {name}\n or '\0')
-        // handle space after name (is ok)
+        /*  this isn't such a good way to parse the instructions in my opinion but i basically try to make sure
+            it is in the format of mcro {name} {nothing more here}
+            in order to do that i do a couple of checks:
+            check if first word of the instruction is mcro
+            check if "third" word is null (meaning the instruction is mcro {name}\n or '\0')
+            handle space after name (is ok) */
         if (strcmp(first_word, "mcro") == 0 && (third_word == NULL || third_word[0] == '\n')) { //
             if (second_word == NULL) {
-                fprintf(stderr, "yo bro you got an error you defined a macro without a name");
+                fprintf(stderr, "Error in line %d: defined a mcro with no name.", IC);
                 exists_error = 1;
                 break;
             }
             macro_Linked_list *to_add;
             if (name_valid(second_word, IC) == 0) {
+                exists_error = 1;
+            }
+            else if (contains(macro_table, second_word)) {
+                fprintf(stderr, "Error in line %d: duplicate macro name %s. \n", IC, second_word);
                 exists_error = 1;
             }
             exists_mcro = 1;
@@ -139,28 +205,13 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
             memset(to_add, 0, sizeof (macro_Linked_list));
             mcropoint->next_macro = to_add;
             instructionpoint = mcropoint->first_instruction; // pointer to add instruction too
-            printf("adding macro with name: %s", second_word);
         }
-        else if (strcmp(first_word, "mcroend\n") == 0) {
+        else if (strcmp(first_word, "mcroend") == 0 || strcmp(first_word, "mcroend\n") == 0) {
             exists_mcro = 0;
             mcropoint = mcropoint->next_macro;
         }
         else if (exists_mcro) {
-            Linked_List *to_add = malloc(sizeof (Linked_List));
-            memset(to_add, 0, sizeof (Linked_List));
-            if (!to_add) {
-                exists_error = 1;
-                fprintf(stderr, "Memory allocation failed\n");
-            }
-            strcpy(to_add->instruction, line);
-            to_add->next_instruction = NULL;
-            if (mcropoint->first_instruction == NULL) {
-                mcropoint->first_instruction = to_add;
-            }
-            else {
-                instructionpoint->next_instruction = to_add;
-            }
-            instructionpoint = to_add;
+            instructionpoint = insert_instruction(mcropoint, instructionpoint, line, &exists_error, IC);
         }
         else { // comes here if (exists mcro = 0, the command is not mcro and not end mcro meaning it's instruction
             macro_Linked_list* banana = macro_table;
@@ -207,7 +258,10 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
         }
         IC++;
     }
-    // free my boy :)
+    /*
+     * If an error exists, there's no point in creating the post file.
+     * So we're freeing the macro linked list so it won't leak and closing the program
+     */
     if (exists_error) {
         macro_Linked_list* trmp;
         macro_Linked_list* iteratepoint = macro_table;
@@ -223,6 +277,12 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
             iteratepoint = trmp;
         }
         free(iteratepoint); // free the final "NULL" node malloced to null pointers :)
+        if (source_asm) {
+            fclose(source_asm);
+        }
+        if (post_pre_asm) {
+            fclose(post_pre_asm);
+        }
         fflush(stderr);
         exit(1);
     }
@@ -231,45 +291,4 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
     fclose(source_asm);
     fclose(post_pre_asm);
     return macro_table;
-}
-
-int memory_pointer = 0;  // define memory pointer probably will change it later
-int memory[256] = {0};
-
-int main(int argc, char *argv[]) {
-    int j;
-    size_t len;
-    macro_Linked_list *macro_table;
-    char *file_name;
-    char *post_file_name;
-    for (j = 1; j<argc; j++) {
-        int w;
-        for (w = 0; w < 256; w++) {
-            memory[w] = 0;
-        }
-        memory_pointer = 0;
-        printf("handling %s\n", argv[j]);
-
-        len = 4 + strlen(argv[j]); /* using size_t because of conversion stuff and you know */
-        file_name = malloc(len);
-
-        /* this is responsible for opening the original file*/
-        strcpy(file_name, argv[j]);
-        strcat(file_name, ".as");
-
-        /* this makes the file post the macros spread */
-        post_file_name = malloc(len + 5); /* the 4 is for the word post */
-        strcpy(post_file_name, "post");
-        strcat(post_file_name, file_name);
-
-        /* post_file_name = post{ogfilename}.as */
-        macro_table = pre_asm(file_name, post_file_name);
-
-        /* pass the original argv because i don't know how to strip the "post" and ".as"*/
-        first_passage(macro_table, post_file_name, argv[j]);
-        free(post_file_name);
-        free(file_name);
-
-    }
-    return 0;
 }

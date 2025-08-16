@@ -1,5 +1,20 @@
 
 #define LINE_LENGTH 81
+#define IMMEDIATE_CODE 0
+#define DIRECT_CODE 1
+#define MATRIX_CODE 2
+#define REGISTER_CODE 3
+#define OPCODE_PADDING 6
+#define SOURCE_PADDING 4
+#define DEST_PADDING 2
+#define IMMEDIATE_PADDING 2
+
+#define ROW_REGISTER_PADDING_FOR_MATRIX 6
+#define COLUMN_REGISTER_PADDING_FOR_MATRIX 2
+
+#define REGISTER_SOURCE_PADDING 6
+#define REGISTER_DEST_PADDING 2
+
 
 #ifndef FIRSTPASSAGE_H
 #define FIRSTPASSAGE_H
@@ -45,8 +60,5 @@ typedef struct binary_line {
 void free_all(label_list *list, binary_line *line_to_free, macro_Linked_list *macro_table);
 void print_binary(unsigned short number);
 void first_passage(macro_Linked_list *macro_list, char *og_file_name, char *original_argv);
-
-extern int memory[256];
-extern int memory_pointer;
 
 #endif /* FIRSTPASSAGE_H */

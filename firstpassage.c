@@ -7,23 +7,11 @@
 #include <string.h>
 #include "secondpassage.h"
 #include "firstpassage.h"
+#include "memory.h"
+
 
 #include "preasm.h"
 // 1, 7
-#define IMMEDIATE_CODE 0
-#define DIRECT_CODE 1
-#define MATRIX_CODE 2
-#define REGISTER_CODE 3
-#define OPCODE_PADDING 6
-#define SOURCE_PADDING 4
-#define DEST_PADDING 2
-#define IMMEDIATE_PADDING 2
-
-#define ROW_REGISTER_PADDING_FOR_MATRIX 6
-#define COLUMN_REGISTER_PADDING_FOR_MATRIX 2
-
-#define REGISTER_SOURCE_PADDING 6
-#define REGISTER_DEST_PADDING 2
 
 
 
@@ -90,7 +78,7 @@ int label_name_valid(char *name, int LC, macro_Linked_list *macro_table, int *er
     macro_Linked_list *tmp = macro_table;
     while (tmp != NULL) {
         if (strcmp(tmp->name, name) == 0) {
-            fprintf(stderr, "Error in line %d. The label name is a name of a macro so you can't use it.\n", LC);
+            fprintf(stderr, "Error in line %d: The label name is a name of a macro so you can't use it.\n", LC);
             *error = 1;
             return 0;
         }
@@ -103,26 +91,26 @@ int label_name_valid(char *name, int LC, macro_Linked_list *macro_table, int *er
         "jmp:", "bne:", "jsr:", "red:", "prn:", "rts:", "stop:", "mcro:", "mcroend:"};
 
     if (strlen(name) > 30) {
-        fprintf(stderr, "Error in line %d. The label name is longer than 30 chars.\n", LC);
+        fprintf(stderr, "Error in line %d: The label name is longer than 30 chars.\n", LC);
         *error = 1;
 
         return 0;
     }
     if (isalpha(name[0]) == 0) {
-        fprintf(stderr, "Error in line %d. The first char in name is a number.\n", LC);
+        fprintf(stderr, "Error in line %d: The first char in name is a number.\n", LC);
         *error = 1;
         return 0;
     }
     for (i = 0; name[i] != '\0' && name[i] != '\n'; i++) {
         if (isalnum(name[i]) == 0 && name[i] != '_') {
             if (name[i] == ':' && name[i+1] != '\0') { // check if dots are in the name not in the last positon of name
-                fprintf(stderr, "Error in line %d. The char in the %dth position in label name is not alphanumeric.\n"
+                fprintf(stderr, "Error in line %d: The char in the %dth position in label name is not alphanumeric.\n"
                     , LC, i);
                 *error = 1;
                 return 0;
             }
             if (name[i] != ':') {
-                fprintf(stderr, "Error in line %d. The char in the %dth position in label name is not alphanumeric.\n"
+                fprintf(stderr, "Error in line %d: The char in the %dth position in label name is not alphanumeric.\n"
                     , LC, i);
                 *error = 1;
                 return 0;
@@ -1018,8 +1006,25 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
     binary_line *instructions_iter;
     char line[LINE_LENGTH];
     FILE *source_asm = fopen(post_file_name, "r");
+    if (!source_asm) {
+        fprintf(stderr, "Error opening file %s\n", post_file_name);
+        free_all(NULL, NULL, macro_list);
+        return;
+    }
     label_list* the_label_list = malloc(sizeof(label_list));
+    if (!the_label_list) {
+        fprintf(stderr, "Error: not enough memory\n");
+        free_all(NULL, NULL, macro_list);
+        fclose(source_asm);
+        return;
+    }
     binary_line* instructions_in_binary = malloc(sizeof(binary_line));
+    if (!instructions_in_binary) {
+        fprintf(stderr, "Error: not enough memory\n");
+        free_all(the_label_list, NULL, macro_list);
+        fclose(source_asm);
+        return;
+    }
     // define empty head
     the_label_list->next_label = NULL;
     strcpy(the_label_list->label_name,"");
@@ -1102,7 +1107,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
             if (strcmp(first_word, ".entry") == 0) { // 9
                 if (second_word == NULL) {
                     exists_error = 1;
-                    fprintf(stderr, "Called entry with no label on line %d\n", LC);
+                    fprintf(stderr, "Error in line %d: Called entry with no label on line.\n", LC);
                 }
                 LC++;
                 continue;

@@ -9,6 +9,8 @@
 #include <string.h>
 #include "secondpassage.h"
 #include "firstpassage.h"
+#include "memory.h"
+
 
 #define LABEL_PADDING 2
 #define R_BIT 2
