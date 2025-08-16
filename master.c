@@ -22,18 +22,18 @@
 
 
 void assemble_files(int argc, char *argv[]) {
-    if (argc < 2) {
-        fprintf(stderr, "Error: you should use it like this: %s <file> [<file> ...]\n", argv[0]);
-        return;
-    }
     int j;
     size_t len;
     macro_Linked_list *macro_table;
     char *file_name;
     char *post_file_name;
+    FILE *tmp;
+    if (argc < 2) {
+        fprintf(stderr, "Error: you should use it like this: %s <file> [<file> ...]\n", argv[0]);
+        return;
+    }
     for (j = 1; j<argc; j++) {
         clean_memory();
-
         len = strlen(argv[j]) + 3 + 1; /* 3 for .as and + 1 for \0 */
         file_name = malloc(len);
         if (!file_name) {
@@ -46,7 +46,7 @@ void assemble_files(int argc, char *argv[]) {
         strcat(file_name, ".as");
 
         /* make sure the file exists */
-        FILE *tmp = fopen(file_name, "r");
+        tmp = fopen(file_name, "r");
         if (!tmp) {
             fprintf(stderr, "Error: cannot open file %s\n", file_name);
             free(file_name);

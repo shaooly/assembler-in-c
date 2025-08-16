@@ -9,4 +9,4 @@
 
 void assemble_files(int argc, char *argv[]);
 
-#endif //MASTER_H
+#endif

@@ -97,7 +97,7 @@ int name_valid(char *name, int IC) {
  * in the current place it's on (since we advance it with each iteration)
  */
 
-Linked_List* insert_instruction(macro_Linked_list *macro_table, Linked_List *previous, char *line,
+static Linked_List* insert_instruction(macro_Linked_list *macro_table, Linked_List *previous, char *line,
     int *exists_error, int IC) {
     Linked_List *to_add = malloc(sizeof (Linked_List));
     memset(to_add, 0, sizeof (Linked_List));
@@ -132,18 +132,20 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
     char *first_word;
     char *second_word;
     char *third_word;
+    char line[LINE_LENGTH];
     int exists_mcro;
+    FILE *post_pre_asm;
     FILE *source_asm = fopen(filename, "r");
     if (!source_asm) {
         fprintf(stderr, "Error: Couldn't open the file %s", filename);
         return NULL;
     }
-    FILE *post_pre_asm = fopen(post_filename, "w");
+    post_pre_asm = fopen(post_filename, "w");
     if (!post_pre_asm) {
         fprintf(stderr, "Error: Couldn't open the file %s", post_filename);
         return NULL;
     }
-    char line[LINE_LENGTH];
+
     macro_Linked_list* mcropoint;
     macro_Linked_list* macro_table = malloc(sizeof(macro_Linked_list));
     if (!macro_table) {
@@ -188,12 +190,12 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
             check if "third" word is null (meaning the instruction is mcro {name}\n or '\0')
             handle space after name (is ok) */
         if (strcmp(first_word, "mcro") == 0 && (third_word == NULL || third_word[0] == '\n')) { //
+            macro_Linked_list *to_add;
             if (second_word == NULL) {
                 fprintf(stderr, "Error in line %d: defined a mcro with no name.", IC);
                 exists_error = 1;
                 break;
             }
-            macro_Linked_list *to_add;
             if (name_valid(second_word, IC) == 0) {
                 exists_error = 1;
             }

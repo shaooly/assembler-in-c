@@ -70,16 +70,15 @@ binary_line *get_binary_line(binary_line *line_list, int LC) {
 // i am doing this good because i studied IRGOON with you Rachmani and now i'm the pro in base shifting
 char *make_yihoodi_number(int num, int size, int *error) {
     char *base_4_special_number = malloc(1 + size);
+    int i;
     if (!base_4_special_number) {
         *error = 1;
         fprintf(stderr, "Error on host computer: failed to malloc.");
         return NULL;
     }
-    int i;
     if (num < 0) {
         num = my_pow(4, size) - abs(num); // account for negative numbers
     }
-
     for (i = 0; i < size; i++) {
         int times_fit = my_floor(num / my_pow(4, size - 1 - i));
         char letter_in_i_pos = times_fit + 'a';
@@ -161,11 +160,6 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     int exists_error = 0;
     int LC = 1; // we will match it with LC's !
     FILE *source_asm = fopen(file_name, "r");
-    if (!source_asm) {
-        fprintf(stderr, "Error on host computer: couldn't open the source post pre file\n");
-        free_all(the_label_list, binary_line_list, macro_table);
-        return;
-    }
     FILE *object_file;
     char line[LINE_LENGTH];
     int i;
@@ -175,6 +169,13 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     int exists_entry;
     size_t len;
     char *object_file_name;
+    char *base4_ICF;
+    char *base4_DCF;
+    if (!source_asm) {
+        fprintf(stderr, "Error on host computer: couldn't open the source post pre file\n");
+        free_all(the_label_list, binary_line_list, macro_table);
+        return;
+    }
     while (fgets(line, LINE_LENGTH, source_asm)) {
         char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
         char *second_word = 0;
@@ -276,8 +277,8 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     }
 
     /* Add DCF and ICF */
-    char *base4_ICF = make_yihoodi_number(ICF - 100, 4, &exists_error); /* -100 because we started IC at 100 */
-    char *base4_DCF = make_yihoodi_number(DCF, 4, &exists_error);
+    base4_ICF = make_yihoodi_number(ICF - 100, 4, &exists_error); /* -100 because we started IC at 100 */
+    base4_DCF = make_yihoodi_number(DCF, 4, &exists_error);
     if (base4_ICF != NULL) {
         fprintf(object_file, "%s", base4_ICF);
         fprintf(object_file, "\t");
@@ -375,5 +376,5 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     }
     free_all(the_label_list, binary_line_list, macro_table);
     fclose(source_asm);
-    // build_source_files // 8
+    // build_source_files - 8
 }

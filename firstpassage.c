@@ -252,13 +252,14 @@ void insert_to_label(label_list *list, char label_name[LINE_LENGTH], const char 
     // meaning "should" add name, doesn't throw error
     if (strcmp(label_name, tmp->label_name) != 0) {
         // insert into tmp the current label
+        int label_name_length;
         label_list *to_add = malloc(sizeof(label_list));
         if (!to_add) {
             *error = 1;
             fprintf(stderr, "Error in line %d: Can't allocate memory for the new label.\n", LC);
             return;
         }
-        int label_name_length = (int) strlen(label_name);
+        label_name_length = (int) strlen(label_name);
         if (label_name_length == 0) {
             *error = 1;
             fprintf(stderr, "Error in line %d: The label name is empty.\n", LC);
@@ -1195,19 +1196,20 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
     binary_line *instructions_iter;
     char line[LINE_LENGTH];
     FILE *source_asm = fopen(post_file_name, "r");
+
+    label_list* the_label_list = malloc(sizeof(label_list));
+    binary_line* instructions_in_binary = malloc(sizeof(binary_line));
     if (!source_asm) {
         fprintf(stderr, "Error opening file %s\n", post_file_name);
         free_all(NULL, NULL, macro_list);
         return;
     }
-    label_list* the_label_list = malloc(sizeof(label_list));
     if (!the_label_list) {
         fprintf(stderr, "Error: not enough memory\n");
         free_all(NULL, NULL, macro_list);
         fclose(source_asm);
         return;
     }
-    binary_line* instructions_in_binary = malloc(sizeof(binary_line));
     if (!instructions_in_binary) {
         fprintf(stderr, "Error: not enough memory\n");
         free_all(the_label_list, NULL, macro_list);
@@ -1234,11 +1236,9 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
     instructions_iter = instructions_in_binary;
 
     while (fgets(line, LINE_LENGTH, source_asm)) {
-
+        char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
         /* immediately check for common errors*/
         initial_error_checks(line, &exists_error, LC);
-
-        char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
         strncpy(line_for_tokenisation, line,LINE_LENGTH);
         first_word = strtok(line_for_tokenisation, " \t\n");
         if (first_word == NULL) { // empty line
@@ -1296,7 +1296,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
             }
         }
         // non-data (entry and extern) are always data without label flag cases
-        else if (data_without_label) { // if not data (line 8 // actually it is always here no need
+        else if (data_without_label) { // if not data (line 8 actually it is always here no need
             if (strcmp(first_word, ".entry") == 0) { // 9
                 if (second_word == NULL) {
                     exists_error = 1;
@@ -1338,7 +1338,7 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
             LC++;
             continue;
         }
-        else { // instruction without label ! // this means that first word has to be a known instruction
+        else { // instruction without label. this means that first word has to be a known instruction.
             unsigned short line_binary_representation;
             unsigned short immediate_word;
             int dest_mion = 0;

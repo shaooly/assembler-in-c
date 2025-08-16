@@ -11,6 +11,6 @@
 extern int memory[MEMORY_SIZE];
 extern int memory_pointer;
 
-void clean_memory();
+void clean_memory(void);
 
 #endif //MEMORY_H
