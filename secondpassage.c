@@ -7,8 +7,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "secondpassage.h"
-#include "firstpassage.h"
 #include "memory.h"
 
 
@@ -17,7 +15,7 @@
 
 
 
-/* defining my own int_pow because i want it to compile beautifuly with 0 errors
+/* defining my own int_pow because i want it to compile beautifully with 0 errors
  * not that its hard i'm just explaining why i'm doing it
  */
 int my_pow (int a, int b) {
@@ -29,6 +27,9 @@ int my_pow (int a, int b) {
     return result;
 }
 
+/* defining my own int_pow because i want it to compile beautifully with 0 errors
+ * not that its hard i'm just explaining why i'm doing it
+ */
 int my_floor(double a) {
     int result = (int)a;
     return result;
@@ -48,7 +49,7 @@ label_list *in_label_list(label_list *list, char *label) {
 }
 
 // takes in LC as an input and returns the according binary_line object representation
-binary_line *get_binay_line(binary_line *line_list, int LC) {
+binary_line *get_binary_line(binary_line *line_list, int LC) {
     binary_line *tmp = line_list;
     while (tmp != NULL) {
         if (tmp->LC == LC) {
@@ -59,8 +60,16 @@ binary_line *get_binay_line(binary_line *line_list, int LC) {
     return NULL;
 }
 
-char *make_yihoodi_number(int num, int size) {
+// creates the number in the specified base like in the hoveret
+// basically bitwise ops
+// i am doing this good because i studied IRGOON with you rahmani and now i'm the pro in base shiftingA
+char *make_yihoodi_number(int num, int size, int *error) {
     char *base_4_special_number = malloc(1 + size);
+    if (!base_4_special_number) {
+        *error = 1;
+        fprintf(stderr, "Error on host computer: failed to malloc.");
+        return NULL;
+    }
     int i;
     if (num < 0) {
         num = my_pow(4, size) - abs(num); // account for negative numbers
@@ -77,6 +86,13 @@ char *make_yihoodi_number(int num, int size) {
     return base_4_special_number;
 }
 
+/*
+ * This function basically "fills the holes" we created in the first passage for the binary lines
+ * This is where to struct we defined earlier with the labels comes super handy.
+ * All we need to do is access the corresponding label for the line and if found and it inserts it into place.
+ *
+ * Raises an error if label is not found.
+ */
 void build_label_word(label_list *the_label_list, binary_line *current_line, char *label, int address_pos, int LC,
     int *error, char *original_argv) {
     label_list *label_object = in_label_list(the_label_list, label);
@@ -107,20 +123,27 @@ void build_label_word(label_list *the_label_list, binary_line *current_line, cha
             strcat(external_file_name, ".ext");
             ext_file = fopen(external_file_name, "a");
             free(external_file_name);
+            if (!ext_file) {
+                *error = 1;
+                fprintf(stderr, "Error on host computer: couldn't open the external file\n");
+                return;
+            }
             label_name = label_object->label_name;
             // i broke my head on the line below
             // honestly, idk why but it was hard for me to get it
-            base4_address = make_yihoodi_number(current_line->IC + position, 4);
-            fprintf(ext_file, "%s", label_name);
-            fprintf(ext_file, "\t");
-            fprintf(ext_file, "%s", base4_address);
-            fprintf(ext_file, "\n");
-            free(base4_address);
+            base4_address = make_yihoodi_number(current_line->IC + position, 4, error);
+            if (base4_address != NULL) {
+                fprintf(ext_file, "%s", label_name);
+                fprintf(ext_file, "\t");
+                fprintf(ext_file, "%s", base4_address);
+                fprintf(ext_file, "\n");
+                free(base4_address);
+            }
             fclose(ext_file);
         }
     }
     else {
-        fprintf(stderr, "Error in line %d. label not in list.\n", LC); // check
+        fprintf(stderr, "Error in line %d: label not in list.\n", LC); // check
         *error = 1;
     }
 }
@@ -133,6 +156,11 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     int exists_error = 0;
     int LC = 1; // we will match it with LC's !
     FILE *source_asm = fopen(file_name, "r");
+    if (!source_asm) {
+        fprintf(stderr, "Error on host computer: couldn't open the source post pre file\n");
+        free_all(the_label_list, binary_line_list, macro_table);
+        return;
+    }
     FILE *object_file;
     char line[LINE_LENGTH];
     int i;
@@ -143,13 +171,12 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     size_t len;
     char *object_file_name;
     while (fgets(line, LINE_LENGTH, source_asm)) {
-        printf("crashed on line %d\n", LC);
-
         char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
         char *second_word = 0;
         char *first_word;
         // char *third_word = 0;
         strncpy(line_for_tokenisation, line,LINE_LENGTH);
+        line_for_tokenisation[LINE_LENGTH-1] = '\0';
         first_word = strtok(line_for_tokenisation, " \t\n");
 
         if (first_word == NULL) { // empty line
@@ -164,52 +191,47 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
         if (first_word[strlen(first_word) - 1] == ':') { // label // 2
             first_word = strtok(NULL, " \t\n"); // ignoring the label
         }
-        if (strcmp(first_word, ".data") == 0
-            || strcmp(first_word, ".string") == 0
-            || strcmp(first_word, ".mat") == 0
-            || strcmp(first_word, ".extern") == 0) { // 3
+        if (first_word == NULL) {
+            LC++;
+            continue;
+        }
+        if (strcmp(first_word, ".data") == 0 || strcmp(first_word, ".string") == 0 ||
+            strcmp(first_word, ".mat") == 0 || strcmp(first_word, ".extern") == 0) { // 3
             LC++;
             continue;
             }
-
         second_word = strtok(NULL, " ,\t\n");
-        // third_word = strtok(NULL, " ,\t\n");
-        // if (third_word != NULL) {
-        //     fprintf(stderr, "Error in line %d. More declarations after entry is bad.\n", LC); // check
-        //     exists_error = 1;
-        //     return 0;
-        // }
         if (strcmp(first_word, ".entry") == 0) { // 4
-            if (in_label_list(the_label_list, second_word) != NULL) {
-                label_list *tmp = the_label_list;
-                while (tmp != NULL) {
-                    if (strcmp(tmp->label_name, second_word) == 0) {
-                        strcat(tmp->label_type, "entry"); // 5
+            if (second_word != NULL && in_label_list(the_label_list, second_word) != NULL) {
+                label_list *tmp2 = the_label_list;
+                while (tmp2 != NULL) {
+                    if (strcmp(tmp2->label_name, second_word) == 0) {
+                        strcat(tmp2->label_type, "entry"); // 5
                     }
-                    tmp = tmp->next_label;
+                    tmp2 = tmp2->next_label;
                 }
             }
             else {
-                fprintf(stderr, "Error in line %d. entry label not in list.\n", LC); // check
+                fprintf(stderr, "Error in line %d: entry label not in list.\n", LC);
                 exists_error = 1;
             }
         }
         //
         else {
             // 6
-            binary_line *current_line = get_binay_line(binary_line_list, LC);
+            binary_line *current_line = get_binary_line(binary_line_list, LC);
             if (current_line == NULL) {
                 exists_error = 1;
-                fprintf(stderr, "Error in line %d. idk what happened.\n", LC);
+                fprintf(stderr, "Error in line %d: line not found.\n", LC);
             }
             else {
                 char *source_label = current_line->labels[0];
 
                 char *destination_label = current_line->labels[1];
-                if (strcmp(source_label, "") != 0) { // we have a source label!
+                if (source_label != NULL && strcmp(source_label, "") != 0) { // we have a source label!
                     build_label_word(the_label_list, current_line, source_label, 0, LC, &exists_error, original_argv);
                 }
-                if (strcmp(destination_label, "") != 0) { // we have a destination label!
+                if (destination_label != NULL && strcmp(destination_label, "") != 0) { // we have a destination label!
                     build_label_word(the_label_list, current_line, destination_label, 1, LC, &exists_error, original_argv);
                 }
             }
@@ -217,10 +239,10 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
         LC++;
     }
     if (exists_error) { // 7
-        size_t len;
+        size_t size;
         char *external_file_name;
-        len = strlen(original_argv);
-        external_file_name = malloc(len + 5); /* + 4 for the .ext */
+        size = strlen(original_argv);
+        external_file_name = malloc(size + 5); /* 5 for the .ext + '\0' */
         strcpy(external_file_name, original_argv);
         strcat(external_file_name, ".ext");
         remove(external_file_name);
@@ -228,7 +250,7 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
 
         free_all(the_label_list, binary_line_list, macro_table);
         fclose(source_asm);
-        exit(1);
+        return;
     }
 
     // build source files
@@ -240,18 +262,29 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     strcat(object_file_name, ".ob");
     object_file = fopen(object_file_name, "w");
     free(object_file_name);
+    if (!object_file) {
+        exists_error = 1;
+        fprintf(stderr, "Error on host computer: Couldn't open the object file.\n");
+        free_all(the_label_list, binary_line_list, macro_table);
+        fclose(source_asm);
+        return;
+    }
     tmp1 = binary_line_list;
     while (tmp1 != NULL) {
         int j;
         for (j = 0; j< tmp1->L; j++) {
-           char *base4_instruction = make_yihoodi_number(tmp1->words[j], 5);
-           char *base4_address = make_yihoodi_number(tmp1->IC + j, 4);
-           fprintf(object_file, "%s", base4_address);
-           fprintf(object_file, "\t");
-           fprintf(object_file, "%s", base4_instruction);
-           fprintf(object_file, "\n");
-           free(base4_address);
-           free(base4_instruction);
+            char *base4_instruction = make_yihoodi_number(tmp1->words[j], 5, &exists_error);
+            char *base4_address = make_yihoodi_number(tmp1->IC + j, 4, &exists_error);
+            if (base4_address != NULL) {
+                fprintf(object_file, "%s", base4_address);
+                fprintf(object_file, "\t");
+                free(base4_address);
+            }
+            if (base4_instruction != NULL) {
+                fprintf(object_file, "%s", base4_instruction);
+                fprintf(object_file, "\n");
+                free(base4_instruction);
+            }
         }
         tmp1 = tmp1->next;
     }
@@ -260,14 +293,19 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     DC = ICF;
 
     for (i = 0; i < memory_pointer; i++) {
-        char *label = make_yihoodi_number(memory[i], 5);
-        char *base4_address = make_yihoodi_number(DC + i, 4);
-        fprintf(object_file, "%s", base4_address);
-        fprintf(object_file, "\t");
-        fprintf(object_file, "%s", label);
-        fprintf(object_file, "\n");
-        free(label);
-        free(base4_address);
+        char *label = make_yihoodi_number(memory[i], 5, &exists_error);
+        char *base4_address = make_yihoodi_number(DC + i, 4, &exists_error);
+        if (base4_address != NULL) {
+            fprintf(object_file, "%s", base4_address);
+            fprintf(object_file, "\t");
+            free(base4_address);
+        }
+        if (label != NULL) {
+            fprintf(object_file, "%s", label);
+            fprintf(object_file, "\n");
+            free(label);
+        }
+
     }
     fclose(object_file);
     tmp = the_label_list;
@@ -283,23 +321,32 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
         tmp = tmp->next_label;
     }
     if (exists_entry) {
-        size_t len = strlen(original_argv);
+        size_t size = strlen(original_argv);
         FILE *entry_file;
-        char *entry_file_name = malloc(len + 5); /* + 5 for the .ent + \0 */
+        char *entry_file_name = malloc(size + 5); /* + 5 for the .ent + \0 */
         label_list *tmp2;
         strcpy(entry_file_name, original_argv);
         strcat(entry_file_name, ".ent");
         entry_file = fopen(entry_file_name, "w");
         free(entry_file_name);
+        if (!entry_file) {
+            free_all(the_label_list, binary_line_list, macro_table);
+            fclose(source_asm);
+            exists_error = 1;
+            fprintf(stderr, "Error on host computer: Couldn't open the entry file.\n");
+            return;
+        }
         tmp2 = the_label_list;
         while (tmp2 != NULL) {
             if (strstr(tmp2->label_type, "entry")) {
-                char *base4_address = make_yihoodi_number(tmp2->value, 4);
-                fprintf(entry_file, "%s", tmp2->label_name);
-                fprintf(entry_file, "\t");
-                fprintf(entry_file, "%s", base4_address);
-                fprintf(entry_file, "\n");
-                free(base4_address);
+                char *base4_address = make_yihoodi_number(tmp2->value, 4, &exists_error);
+                if (base4_address != NULL) {
+                    fprintf(entry_file, "%s", tmp2->label_name);
+                    fprintf(entry_file, "\t");
+                    fprintf(entry_file, "%s", base4_address);
+                    fprintf(entry_file, "\n");
+                    free(base4_address);
+                }
             }
             tmp2 = tmp2->next_label;
         }
@@ -307,7 +354,6 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
 
     }
     free_all(the_label_list, binary_line_list, macro_table);
-    printf("finished building the object file succesfuly!\n");
     fclose(source_asm);
     // build_source_files // 8
 }

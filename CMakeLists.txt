@@ -5,6 +5,8 @@ set(CMAKE_C_STANDARD 90)
 
 
 add_executable(untitled2
+        master.c
         preasm.c
         firstpassage.c
-        secondpassage.c)
+        secondpassage.c
+        memory.c)
