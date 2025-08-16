@@ -7,6 +7,8 @@
  * Author: Shaul Joseph Sasson
  * Created: 15/08/2025
  *
+ * Depends on master.h, preasm.h, firstpassage.h, memory.h
+ *
  */
 
 #include "master.h"
@@ -64,7 +66,11 @@ void assemble_files(int argc, char *argv[]) {
 
         /* post_file_name = post{ogfilename}.as */
         macro_table = pre_asm(file_name, post_file_name);
-
+        if (!macro_table) {
+            free(post_file_name);
+            free(file_name);
+            continue;
+        }
         /* pass the original argv because i don't know how to strip the "post" and ".as"*/
         first_passage(macro_table, post_file_name, argv[j]);
         free(post_file_name);

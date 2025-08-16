@@ -1,6 +1,11 @@
-//
-// Created by Shauli on 06/06/2025.
-//
+/*
+ * The first passage of the assembler.
+ * The code passage scans the post assembler file line by line and converts it to binary
+ * Author: Shaul Joseph Sasson
+ * Created 06/06/2025.
+ *
+ * Depends on preasm.h, firstpassage.h, memory.h, secondpassage.h
+ */
 #include <stdio.h>
 #include <stdlib.h>
 #include <ctype.h>
@@ -8,14 +13,12 @@
 #include "secondpassage.h"
 #include "firstpassage.h"
 #include "memory.h"
-
-
 #include "preasm.h"
 // 1, 7
 
 
 /* apparently, strdup isn't a function in ansi C
- * so i built my own :)
+ * so i built my own
  */
 char *new_strdup(const char *str) {
     int length = (int)strlen(str) + 1; /* it cutted off the last part of my string probably null termination so add 1 */
@@ -24,7 +27,8 @@ char *new_strdup(const char *str) {
     return new_str;
 }
 
-// helper function
+// helper function i used it for the entire writing of the first passage
+// in order to see if how my first passage translates compares to the hoveret's binary print
 void print_binary(unsigned short number) {
     int i;
 
@@ -449,10 +453,11 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
         int first_number;
         int second_number;
         int memory_pointer_before = memory_pointer;
-        if (sscanf(full_data, "[%d][%d]", &first_number, &second_number) == 2) {
+        int letters = 0;
+        if (sscanf(full_data, "[ %d ][ %d ] %n", &first_number, &second_number, &letters) == 2) {
             word_count += first_number * second_number;
         }
-        i = 6;/* Magic numbers are usually not good but it fits exactly by [%d][%d] */
+        i = letters;/* Magic numbers are usually not good but it fits exactly by [%d][%d] */
         while (i < (int)strlen(full_data)+1) {
             if ((full_data[i] == ',' && full_data[i + 1] == ',') || // shnei psikim beretzef yaani
                 (full_data[i] == ',' && i == 0) || // psik the first
@@ -496,6 +501,7 @@ void identify_data(char *data_type, char *data, int *DC, int *error, int LC) {
             }
             else if ((full_data[i] < '0' || full_data[i] > '9') && full_data[i] != '+' && full_data[i] != '-') {
                 *error = 1;
+                printf("the problem is with %c", full_data[i]);
                 fprintf(stderr, "Error in line %d: Non number.\n", LC);
                 return;
             }
@@ -991,7 +997,7 @@ void analyze_and_build(int *L, unsigned short *line_binary_representation, unsig
         else { // if register or immediate
             // words[0] is instruction, words[1] is the source (register or immediate), words[2] is matrix and 3 is word
             new_node->words[3] = matrix_word;
-            new_node->labels[1] = new_strdup(first_op);
+            new_node->labels[1] = new_strdup(second_op);
             new_node->labels_addressing[1] = 2; // words[2] needs to be updated to the location of the matrix
         }
     }
@@ -1086,19 +1092,18 @@ void free_all(label_list *list, binary_line *line_to_free, macro_Linked_list *ma
         if (strcmp(line_to_free->labels[1], "") != 0) {
             free(line_to_free->labels[1]);
         }
-        // printf("%d", line_to_free->LC);
         free(line_to_free);
         line_to_free = tmp;
     }
     free(line_to_free);
-    // printf("\n");
-    while (list->next_label != NULL) {
-        label_list *tmp = list->next_label;
-        // printf("%s | %d | %s\n", tmp->label_name, tmp->value, tmp->label_type);
+    if (list != NULL) {
+        while (list->next_label != NULL) {
+            label_list *tmp = list->next_label;
+            free(list);
+            list = tmp;
+        }
         free(list);
-        list = tmp;
     }
-    free(list);
 
     iteratepoint = macro_table;
     while (iteratepoint != NULL) {
@@ -1442,5 +1447,5 @@ void first_passage(macro_Linked_list *macro_list, char *post_file_name, char *or
         }
         tmp = tmp->next_label;
     }
-    second_passage(instructions_in_binary, the_label_list, ICF, macro_list, post_file_name, original_argv);
+    second_passage(instructions_in_binary, the_label_list, ICF, DCF, macro_list, post_file_name, original_argv);
 }

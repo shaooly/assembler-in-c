@@ -134,8 +134,15 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
     char *third_word;
     int exists_mcro;
     FILE *source_asm = fopen(filename, "r");
+    if (!source_asm) {
+        fprintf(stderr, "Error: Couldn't open the file %s", filename);
+        return NULL;
+    }
     FILE *post_pre_asm = fopen(post_filename, "w");
-
+    if (!post_pre_asm) {
+        fprintf(stderr, "Error: Couldn't open the file %s", post_filename);
+        return NULL;
+    }
     char line[LINE_LENGTH];
     macro_Linked_list* mcropoint;
     macro_Linked_list* macro_table = malloc(sizeof(macro_Linked_list));
@@ -194,19 +201,25 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
                 fprintf(stderr, "Error in line %d: duplicate macro name %s. \n", IC, second_word);
                 exists_error = 1;
             }
-            exists_mcro = 1;
-            strcpy(mcropoint->name, second_word);
-            mcropoint->first_instruction = NULL;
-            to_add = malloc(sizeof (macro_Linked_list));
-            /* i actually prefer to set everything to null
-             * and i've been doing so for years coding in java
-             * but valgrind is screaming so i'm using the memset alternative hopefully it will work
-             */
-            memset(to_add, 0, sizeof (macro_Linked_list));
-            mcropoint->next_macro = to_add;
-            instructionpoint = mcropoint->first_instruction; // pointer to add instruction too
+            else {
+                exists_mcro = 1;
+                strcpy(mcropoint->name, second_word);
+                mcropoint->first_instruction = NULL;
+                to_add = malloc(sizeof (macro_Linked_list));
+                /* i actually prefer to set everything to null
+                 * and i've been doing so for years coding in java
+                 * but valgrind is screaming so i'm using the memset alternative hopefully it will work
+                 */
+                memset(to_add, 0, sizeof (macro_Linked_list));
+                mcropoint->next_macro = to_add;
+                instructionpoint = mcropoint->first_instruction; // pointer to add instruction too
+            }
         }
         else if (strcmp(first_word, "mcroend") == 0 || strcmp(first_word, "mcroend\n") == 0) {
+            if (mcropoint->first_instruction == NULL) {
+                fprintf(stderr, "Error in line %d: empty macro is illegal", IC);
+                exists_error = 1;
+            }
             exists_mcro = 0;
             mcropoint = mcropoint->next_macro;
         }
@@ -277,17 +290,11 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
             iteratepoint = trmp;
         }
         free(iteratepoint); // free the final "NULL" node malloced to null pointers :)
-        if (source_asm) {
-            fclose(source_asm);
-        }
-        if (post_pre_asm) {
-            fclose(post_pre_asm);
-        }
+        fclose(source_asm);
+        fclose(post_pre_asm);
         fflush(stderr);
-        exit(1);
+        return NULL;
     }
-    // leaked so much memory before this haha
-    // finished making the macro table
     fclose(source_asm);
     fclose(post_pre_asm);
     return macro_table;

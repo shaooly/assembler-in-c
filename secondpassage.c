@@ -1,7 +1,12 @@
-//
-// Created by Shauli on 11/07/2025.
-//
-
+/*
+ * The second passage of the assembler.
+ * The passage scans the file again, completes the label addressing and creates the ouput files
+ *
+ * Author: Shaul Joseph Sasson
+ * Created 11/07/2025.
+ *
+ * Depends on firstpassage.h, memory.h, secondpassage.h
+ */
 #include "secondpassage.h"
 #include "firstpassage.h"
 #include <stdio.h>
@@ -62,7 +67,7 @@ binary_line *get_binary_line(binary_line *line_list, int LC) {
 
 // creates the number in the specified base like in the hoveret
 // basically bitwise ops
-// i am doing this good because i studied IRGOON with you rahmani and now i'm the pro in base shiftingA
+// i am doing this good because i studied IRGOON with you Rachmani and now i'm the pro in base shifting
 char *make_yihoodi_number(int num, int size, int *error) {
     char *base_4_special_number = malloc(1 + size);
     if (!base_4_special_number) {
@@ -151,7 +156,7 @@ void build_label_word(label_list *the_label_list, binary_line *current_line, cha
 
 
 
-void second_passage(binary_line *binary_line_list, label_list *the_label_list, int ICF,
+void second_passage(binary_line *binary_line_list, label_list *the_label_list, int ICF, int DCF,
     macro_Linked_list *macro_table, char *file_name, char *original_argv) {
     int exists_error = 0;
     int LC = 1; // we will match it with LC's !
@@ -269,6 +274,21 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
         fclose(source_asm);
         return;
     }
+
+    /* Add DCF and ICF */
+    char *base4_ICF = make_yihoodi_number(ICF - 100, 4, &exists_error); /* -100 because we started IC at 100 */
+    char *base4_DCF = make_yihoodi_number(DCF, 4, &exists_error);
+    if (base4_ICF != NULL) {
+        fprintf(object_file, "%s", base4_ICF);
+        fprintf(object_file, "\t");
+        free(base4_ICF);
+    }
+    if (base4_DCF != NULL) {
+        fprintf(object_file, "%s", base4_DCF);
+        fprintf(object_file, "\n");
+        free(base4_DCF);
+    }
+
     tmp1 = binary_line_list;
     while (tmp1 != NULL) {
         int j;
