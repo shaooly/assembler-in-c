@@ -42,4 +42,5 @@ The final executable is an assembler that can assemble .as and bring them to the
 To compile the project run:
 
 ```bash
+make
 make clean
