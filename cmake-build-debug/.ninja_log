@@ -57,3 +57,10 @@
 13	103	7770767039305981	CMakeFiles/untitled2.dir/secondpassage.c.obj	ad765b8bd777ba49
 10	136	7770767039276790	CMakeFiles/untitled2.dir/firstpassage.c.obj	965548983c62372b
 136	207	7770767040532370	untitled2.exe	4298b241e6837685
+8	15	7770812899411905	clean	f1c0810b4f0350db
+17	101	7770812900365828	CMakeFiles/untitled2.dir/memory.c.obj	d61cdbb2f9b085cb
+3	108	7770812900229506	CMakeFiles/untitled2.dir/master.c.obj	62695941a573a992
+7	116	7770812900268440	CMakeFiles/untitled2.dir/preasm.c.obj	41dbd844e0ba7536
+14	135	7770812900336574	CMakeFiles/untitled2.dir/secondpassage.c.obj	ad765b8bd777ba49
+11	154	7770812900307369	CMakeFiles/untitled2.dir/firstpassage.c.obj	965548983c62372b
+154	376	7770812901745330	untitled2.exe	4298b241e6837685

@@ -136,6 +136,12 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
     int exists_mcro;
     FILE *post_pre_asm;
     FILE *source_asm = fopen(filename, "r");
+    macro_Linked_list* mcropoint;
+    macro_Linked_list* macro_table = malloc(sizeof(macro_Linked_list));
+    if (!macro_table) {
+        fprintf(stderr, "Error in line %d: not enough memory to malloc.\n", IC);
+        exit(1);
+    }
     if (!source_asm) {
         fprintf(stderr, "Error: Couldn't open the file %s", filename);
         return NULL;
@@ -146,12 +152,6 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
         return NULL;
     }
 
-    macro_Linked_list* mcropoint;
-    macro_Linked_list* macro_table = malloc(sizeof(macro_Linked_list));
-    if (!macro_table) {
-        fprintf(stderr, "Error in line %d: not enough memory to malloc.\n", IC);
-        exit(1);
-    }
     memset(macro_table, 0, sizeof(macro_Linked_list)); /* valgrind yelling */
     macro_table->first_instruction = NULL;
     macro_table->next_macro = NULL;
@@ -161,7 +161,8 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
     exists_mcro = 0;
     while (fgets(line, LINE_LENGTH, source_asm)) {
         // check if line is longer than the limit
-        if (line[LINE_LENGTH - 1] != '\0' && line[strlen(line) - 1] != '\n') {
+        const int size = (int) strlen(line);
+        if (size > 0 && line[size - 1] != '\n') {
             if (fgetc(source_asm) != EOF) { // when last line doesn't have "\n"
                 fprintf(stderr, "Error in line %d: The instruction is longer than 80 chars.\n", IC);
                 exists_error = 1;

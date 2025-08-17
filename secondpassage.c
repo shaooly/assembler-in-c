@@ -194,7 +194,7 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
             continue;
         }
 
-        if (first_word[strlen(first_word) - 1] == ':') { // label // 2
+        if (first_word[strlen(first_word) - 1] == ':') { // label - 2
             first_word = strtok(NULL, " \t\n"); // ignoring the label
         }
         if (first_word == NULL) {
