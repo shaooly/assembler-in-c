@@ -29,7 +29,7 @@ void assemble_files(int argc, char *argv[]) {
     char *post_file_name;
     FILE *tmp;
     if (argc < 2) {
-        fprintf(stderr, "Error: you should use it like this: %s <file> [<file> ...]\n", argv[0]);
+        fprintf(stdout, "Error: you should use it like this: %s <file> [<file> ...]\n", argv[0]);
         return;
     }
     for (j = 1; j<argc; j++) {
@@ -37,7 +37,7 @@ void assemble_files(int argc, char *argv[]) {
         len = strlen(argv[j]) + 3 + 1; /* 3 for .as and + 1 for \0 */
         file_name = malloc(len);
         if (!file_name) {
-            fprintf(stderr, "Error: not enough memory\n");
+            fprintf(stdout, "Error: not enough memory\n");
             continue;
         }
 
@@ -48,7 +48,7 @@ void assemble_files(int argc, char *argv[]) {
         /* make sure the file exists */
         tmp = fopen(file_name, "r");
         if (!tmp) {
-            fprintf(stderr, "Error: cannot open file %s\n", file_name);
+            fprintf(stdout, "Error: cannot open file %s\n", file_name);
             free(file_name);
             continue;
         }
@@ -57,7 +57,7 @@ void assemble_files(int argc, char *argv[]) {
         /* this makes the file post the macros spread */
         post_file_name = malloc(len + 4 + 1); /* 4 for the word post + 1 for the \0 */
         if (!post_file_name) {
-            fprintf(stderr, "Error: not enough memory\n");
+            fprintf(stdout, "Error: not enough memory\n");
             free(file_name);
             continue;
         }

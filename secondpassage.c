@@ -32,7 +32,7 @@ int my_pow (int a, int b) {
     return result;
 }
 
-/* defining my own int_pow because i want it to compile beautifully with 0 errors
+/* defining my own floor because i want it to compile beautifully with 0 errors
  * not that its hard i'm just explaining why i'm doing it
  */
 int my_floor(double a) {
@@ -73,7 +73,7 @@ char *make_yihoodi_number(int num, int size, int *error) {
     int i;
     if (!base_4_special_number) {
         *error = 1;
-        fprintf(stderr, "Error on host computer: failed to malloc.");
+        fprintf(stdout, "Error on host computer: failed to malloc.");
         return NULL;
     }
     if (num < 0) {
@@ -129,7 +129,7 @@ void build_label_word(label_list *the_label_list, binary_line *current_line, cha
             free(external_file_name);
             if (!ext_file) {
                 *error = 1;
-                fprintf(stderr, "Error on host computer: couldn't open the external file\n");
+                fprintf(stdout, "Error on host computer: couldn't open the external file\n");
                 return;
             }
             label_name = label_object->label_name;
@@ -147,18 +147,19 @@ void build_label_word(label_list *the_label_list, binary_line *current_line, cha
         }
     }
     else {
-        fprintf(stderr, "Error in line %d: label not in list.\n", LC); // check
+        fprintf(stdout, "Error in line %d: label not in list.\n", LC); // check
         *error = 1;
     }
 }
 
-
-
-
+/*
+ * The second passage master function.
+ * Fills the holes of the labels as made in the struct.
+ */
 void second_passage(binary_line *binary_line_list, label_list *the_label_list, int ICF, int DCF,
     macro_Linked_list *macro_table, char *file_name, char *original_argv) {
     int exists_error = 0;
-    int LC = 1; // we will match it with LC's !
+    int LC = 1; // we will match it with LC's.
     FILE *source_asm = fopen(file_name, "r");
     FILE *object_file;
     char line[LINE_LENGTH];
@@ -172,7 +173,7 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     char *base4_ICF;
     char *base4_DCF;
     if (!source_asm) {
-        fprintf(stderr, "Error on host computer: couldn't open the source post pre file\n");
+        fprintf(stdout, "Error on host computer: couldn't open the source post pre file\n");
         free_all(the_label_list, binary_line_list, macro_table);
         return;
     }
@@ -180,7 +181,6 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
         char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
         char *second_word = 0;
         char *first_word;
-        // char *third_word = 0;
         strncpy(line_for_tokenisation, line,LINE_LENGTH);
         line_for_tokenisation[LINE_LENGTH-1] = '\0';
         first_word = strtok(line_for_tokenisation, " \t\n");
@@ -218,7 +218,7 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
                 }
             }
             else {
-                fprintf(stderr, "Error in line %d: entry label not in list.\n", LC);
+                fprintf(stdout, "Error in line %d: entry label not in list.\n", LC);
                 exists_error = 1;
             }
         }
@@ -227,8 +227,12 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
             // 6
             binary_line *current_line = get_binary_line(binary_line_list, LC);
             if (current_line == NULL) {
+                /*
+                 * This is technically unreachable code because i've made sure in the first passage to cover all of
+                 * these cases but maybe if some very weird input this can happen i'm doubtful but let's see
+                 */
                 exists_error = 1;
-                fprintf(stderr, "Error in line %d: line not found.\n", LC);
+                fprintf(stdout, "Error in line %d: line not found.\n", LC);
             }
             else {
                 char *source_label = current_line->labels[0];
@@ -259,7 +263,7 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
         return;
     }
 
-    // build source files
+    // build source files - 8
 
     len = strlen(original_argv);
 
@@ -270,7 +274,7 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     free(object_file_name);
     if (!object_file) {
         exists_error = 1;
-        fprintf(stderr, "Error on host computer: Couldn't open the object file.\n");
+        fprintf(stdout, "Error on host computer: Couldn't open the object file.\n");
         free_all(the_label_list, binary_line_list, macro_table);
         fclose(source_asm);
         return;
@@ -326,7 +330,6 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
             fprintf(object_file, "\n");
             free(label);
         }
-
     }
     fclose(object_file);
     tmp = the_label_list;
@@ -354,7 +357,7 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
             free_all(the_label_list, binary_line_list, macro_table);
             fclose(source_asm);
             exists_error = 1;
-            fprintf(stderr, "Error on host computer: Couldn't open the entry file.\n");
+            fprintf(stdout, "Error on host computer: Couldn't open the entry file.\n");
             return;
         }
         tmp2 = the_label_list;

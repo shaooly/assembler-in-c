@@ -54,7 +54,7 @@ int contains(macro_Linked_list* macro_table, char* command_name) {
 /*
  * Validates a macro name by the rules.
  * Params: name - the candidate macro name
- *         IC   - current line number (for error reporting)
+ *         IC - current line number (for error reporting)
  * Returns: 1 if valid, 0 otherwise
  */
 
@@ -119,7 +119,7 @@ static Linked_List* insert_instruction(macro_Linked_list *macro_table, Linked_Li
 
 /*
  * The actual pre-assembler stage.
- * Params: filename      - input source (.as)
+ * Params: filename - input source (.as)
  *         post_filename - output file with macros expanded
  * Returns: pointer to the macro table.
  */
@@ -163,10 +163,16 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
         // check if line is longer than the limit
         const int size = (int) strlen(line);
         if (size > 0 && line[size - 1] != '\n') {
-            if (fgetc(source_asm) != EOF) { // when last line doesn't have "\n"
+            int completion_char = fgetc(source_asm);
+            if (completion_char != EOF) { // when last line doesn't have "\n"
                 fprintf(stderr, "Error in line %d: The instruction is longer than 80 chars.\n", IC);
                 exists_error = 1;
             }
+            while (completion_char != '\n' && completion_char != EOF) {
+                completion_char = fgetc(source_asm);
+            }
+            IC++;
+            continue;
         }
         strncpy(line_for_tokenisation, line,LINE_LENGTH);
         first_word = strtok(line_for_tokenisation, " \t\n");
@@ -178,7 +184,6 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
             IC++;
             continue;
         }
-
         second_word = strtok(NULL, " \t\n");
         third_word = NULL;
         if (second_word != NULL) {
@@ -219,12 +224,19 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
             }
         }
         else if (strcmp(first_word, "mcroend") == 0 || strcmp(first_word, "mcroend\n") == 0) {
-            if (mcropoint->first_instruction == NULL) {
-                fprintf(stderr, "Error in line %d: empty macro is illegal", IC);
-                exists_error = 1;
+            /* macro name was undefined */
+            if (exists_mcro == 0) {
+                mcropoint->first_instruction = NULL; // remove all the commands added for undefined macro
             }
-            exists_mcro = 0;
-            mcropoint = mcropoint->next_macro;
+            else if (mcropoint->first_instruction == NULL) {
+                fprintf(stderr, "Error in line %d: empty macro is illegal\n", IC);
+                exists_error = 1;
+                exists_mcro = 0;
+            }
+            else {
+                exists_mcro = 0;
+                mcropoint = mcropoint->next_macro;
+            }
         }
         else if (exists_mcro) {
             instructionpoint = insert_instruction(mcropoint, instructionpoint, line, &exists_error, IC);
@@ -234,7 +246,7 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
             if (contains(banana, first_word) || (first_word[strlen(first_word) - 1] == ':'
                         && contains(banana, second_word)
                         && third_word == NULL)) { // check if command is in macro table
-                // bring the macro hereee
+                // bring the macro here
                 macro_Linked_list* iteratepoint = macro_table;
                 if (first_word[strlen(first_word) - 1] == '\n') {
                     first_word[strlen(first_word) - 1] = '\0'; // remove newline if there is any
@@ -292,9 +304,10 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
             free(iteratepoint);
             iteratepoint = trmp;
         }
-        free(iteratepoint); // free the final "NULL" node malloced to null pointers :)
+        free(iteratepoint); // free the final "NULL" node malloced to null pointers
         fclose(source_asm);
         fclose(post_pre_asm);
+        remove(post_filename);
         fflush(stderr);
         return NULL;
     }
