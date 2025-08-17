@@ -35,8 +35,8 @@ The final executable is an assembler that can assemble .as and bring them to the
   - **.mat** - The assembler assumes that if the assembly code doesn't contain enough integers for the defined matrix the rest is filled with zeros.
   - **.data** - The assembler assumes floating point numbers are forbidden and throws and error if found.
 - ## Error handling
-  - **Stop on error** - When the assembler enconters an error it stops at the end of the segmant (preasm, firstpassage, secondpassage). This means that if any errors where found in the preasm step it stops there, and doesn't continue to the first passage, and the same for the first passage.
-  - **Second passage** - If errors where found in the second passage no files will be created. 
+  - **Stop on error** - When the assembler enconters an error it stops at the end of the segmant (preasm, firstpassage, secondpassage). This means that if any errors where found in the preasm step it stops there, and doesn't continue to the first passage, and the same for the first passage. if it stops in the first passage, it still generates the post file because the errors in the lines are coresponding to the lines in the mcro.
+  - **Second passage** - If errors where found in the second passage no files will be created.
 ---
 ## Build Instructions
 To compile the project run:
