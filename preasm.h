@@ -33,4 +33,4 @@ typedef struct macro_Linked_list {
 macro_Linked_list* pre_asm(char *filename, char *post_filename);
 
 
-#endif //PREASM_H
+#endif /* PREASM_H */

@@ -41,7 +41,7 @@ int my_floor(double a) {
 
 }
 
-// checks if in label list if yes returns the label object associated with it in the list
+/*  checks if in label list if yes returns the label object associated with it in the list */
 label_list *in_label_list(label_list *list, char *label) {
     label_list *tmp = list;
     while (tmp != NULL) {
@@ -53,7 +53,7 @@ label_list *in_label_list(label_list *list, char *label) {
     return NULL;
 }
 
-// takes in LC as an input and returns the according binary_line object representation
+/*  takes in LC as an input and returns the according binary_line object representation */
 binary_line *get_binary_line(binary_line *line_list, int LC) {
     binary_line *tmp = line_list;
     while (tmp != NULL) {
@@ -65,9 +65,9 @@ binary_line *get_binary_line(binary_line *line_list, int LC) {
     return NULL;
 }
 
-// creates the number in the specified base like in the hoveret
-// basically bitwise ops
-// i am doing this good because i studied IRGOON with you Rachmani and now i'm the pro in base shifting
+/*  creates the number in the specified base like in the hoveret */
+/*  basically bitwise ops */
+/*  i am doing this good because i studied IRGOON with you Rachmani and now i'm the pro in base shifting */
 char *make_yihoodi_number(int num, int size, int *error) {
     char *base_4_special_number = malloc(1 + size);
     int i;
@@ -77,7 +77,7 @@ char *make_yihoodi_number(int num, int size, int *error) {
         return NULL;
     }
     if (num < 0) {
-        num = my_pow(4, size) - abs(num); // account for negative numbers
+        num = my_pow(4, size) - abs(num); /*  account for negative numbers */
     }
     for (i = 0; i < size; i++) {
         int times_fit = my_floor(num / my_pow(4, size - 1 - i));
@@ -100,18 +100,18 @@ char *make_yihoodi_number(int num, int size, int *error) {
 void build_label_word(label_list *the_label_list, binary_line *current_line, char *label, int address_pos, int LC,
     int *error, char *original_argv) {
     label_list *label_object = in_label_list(the_label_list, label);
-    if (label_object != NULL) { // we found the label in the list !
+    if (label_object != NULL) { /*  we found the label in the list ! */
         if (strcmp(label_object->label_type, "external") != 0) {
-            // shift the location and OR with A,R,E bit (10)
+            /*  shift the location and OR with A,R,E bit (10) */
             unsigned short label_word = (label_object->value << LABEL_PADDING) | R_BIT;
             int position = current_line->labels_addressing[address_pos];
             if (position != 0) {
                 current_line->words[position] = label_word;
             }
-            //printf("words after changing addressing : %d\n", current_line->words[0]);
+            /* printf("words after changing addressing : %d\n", current_line->words[0]); */
         }
-        else { // if external
-            unsigned short label_word = 1; // zero's and 01 at the end according to E bitting
+        else { /*  if external */
+            unsigned short label_word = 1; /*  zero's and 01 at the end according to E bitting */
             char *label_name;
             FILE *ext_file;
             int position = current_line->labels_addressing[address_pos];
@@ -133,8 +133,8 @@ void build_label_word(label_list *the_label_list, binary_line *current_line, cha
                 return;
             }
             label_name = label_object->label_name;
-            // i broke my head on the line below
-            // honestly, idk why but it was hard for me to get it
+            /*  i broke my head on the line below */
+            /*  honestly, idk why but it was hard for me to get it */
             base4_address = make_yihoodi_number(current_line->IC + position, 4, error);
             if (base4_address != NULL) {
                 fprintf(ext_file, "%s", label_name);
@@ -147,7 +147,7 @@ void build_label_word(label_list *the_label_list, binary_line *current_line, cha
         }
     }
     else {
-        fprintf(stdout, "Error in line %d: label not in list.\n", LC); // check
+        fprintf(stdout, "Error in line %d: label not in list.\n", LC); /*  check */
         *error = 1;
     }
 }
@@ -159,7 +159,7 @@ void build_label_word(label_list *the_label_list, binary_line *current_line, cha
 void second_passage(binary_line *binary_line_list, label_list *the_label_list, int ICF, int DCF,
     macro_Linked_list *macro_table, char *file_name, char *original_argv) {
     int exists_error = 0;
-    int LC = 1; // we will match it with LC's.
+    int LC = 1; /*  we will match it with LC's. */
     FILE *source_asm = fopen(file_name, "r");
     FILE *object_file;
     char line[LINE_LENGTH];
@@ -178,41 +178,41 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
         return;
     }
     while (fgets(line, LINE_LENGTH, source_asm)) {
-        char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
+        char line_for_tokenisation[LINE_LENGTH]; /*  line to not ruin the original string */
         char *second_word = 0;
         char *first_word;
         strncpy(line_for_tokenisation, line,LINE_LENGTH);
         line_for_tokenisation[LINE_LENGTH-1] = '\0';
         first_word = strtok(line_for_tokenisation, " \t\n");
 
-        if (first_word == NULL) { // empty line
+        if (first_word == NULL) { /*  empty line */
             LC++;
             continue;
         }
-        if (first_word[0] == ';') { // comment
+        if (first_word[0] == ';') { /*  comment */
             LC++;
             continue;
         }
 
-        if (first_word[strlen(first_word) - 1] == ':') { // label - 2
-            first_word = strtok(NULL, " \t\n"); // ignoring the label
+        if (first_word[strlen(first_word) - 1] == ':') { /*  label - 2 */
+            first_word = strtok(NULL, " \t\n"); /*  ignoring the label */
         }
         if (first_word == NULL) {
             LC++;
             continue;
         }
         if (strcmp(first_word, ".data") == 0 || strcmp(first_word, ".string") == 0 ||
-            strcmp(first_word, ".mat") == 0 || strcmp(first_word, ".extern") == 0) { // 3
+            strcmp(first_word, ".mat") == 0 || strcmp(first_word, ".extern") == 0) { /*  3 */
             LC++;
             continue;
             }
         second_word = strtok(NULL, " ,\t\n");
-        if (strcmp(first_word, ".entry") == 0) { // 4
+        if (strcmp(first_word, ".entry") == 0) { /*  4 */
             if (second_word != NULL && in_label_list(the_label_list, second_word) != NULL) {
                 label_list *tmp2 = the_label_list;
                 while (tmp2 != NULL) {
                     if (strcmp(tmp2->label_name, second_word) == 0) {
-                        strcat(tmp2->label_type, "entry"); // 5
+                        strcat(tmp2->label_type, "entry"); /*  5 */
                     }
                     tmp2 = tmp2->next_label;
                 }
@@ -222,9 +222,9 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
                 exists_error = 1;
             }
         }
-        //
+        /*  */
         else {
-            // 6
+            /*  6 */
             binary_line *current_line = get_binary_line(binary_line_list, LC);
             if (current_line == NULL) {
                 /*
@@ -238,17 +238,17 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
                 char *source_label = current_line->labels[0];
 
                 char *destination_label = current_line->labels[1];
-                if (source_label != NULL && strcmp(source_label, "") != 0) { // we have a source label!
+                if (source_label != NULL && strcmp(source_label, "") != 0) { /*  we have a source label! */
                     build_label_word(the_label_list, current_line, source_label, 0, LC, &exists_error, original_argv);
                 }
-                if (destination_label != NULL && strcmp(destination_label, "") != 0) { // we have a destination label!
+                if (destination_label != NULL && strcmp(destination_label, "") != 0) { /*  we have a destination label! */
                     build_label_word(the_label_list, current_line, destination_label, 1, LC, &exists_error, original_argv);
                 }
             }
         }
         LC++;
     }
-    if (exists_error) { // 7
+    if (exists_error) { /*  7 */
         size_t size;
         char *external_file_name;
         size = strlen(original_argv);
@@ -263,7 +263,7 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
         return;
     }
 
-    // build source files - 8
+    /*  build source files - 8 */
 
     len = strlen(original_argv);
 
@@ -333,12 +333,12 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     }
     fclose(object_file);
     tmp = the_label_list;
-    // iterate label list and extract entries
-    exists_entry = 0; // flag if entry exists and create file.
-    // i know it would've been possible to do it in the same loop but i want readable code and it doesn't save
-    // that much space
+    /*  iterate label list and extract entries */
+    exists_entry = 0; /*  flag if entry exists and create file. */
+    /*  i know it would've been possible to do it in the same loop but i want readable code and it doesn't save */
+    /*  that much space */
     while (tmp != NULL) {
-        // strstr checks if "entry" is a substring
+        /*  strstr checks if "entry" is a substring */
         if (strstr(tmp->label_type, "entry")) {
             exists_entry = 1;
         }
@@ -379,5 +379,5 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     }
     free_all(the_label_list, binary_line_list, macro_table);
     fclose(source_asm);
-    // build_source_files - 8
+    /*  build_source_files - 8 */
 }

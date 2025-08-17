@@ -11,7 +11,7 @@
  */
 #include "memory.h"
 
-int memory_pointer = 0;  // define memory pointer probably will change it later
+int memory_pointer = 0;  /*  define memory pointer probably will change it later */
 int memory[MEMORY_SIZE] = {0};
 
 void clean_memory() {

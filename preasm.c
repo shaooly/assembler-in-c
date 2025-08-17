@@ -37,7 +37,7 @@ int contains(macro_Linked_list* macro_table, char* command_name) {
         return 0;
     }
     if (command_name[strlen(command_name) - 1] == '\n') {
-        command_name[strlen(command_name) - 1] = '\0'; // remove newline if there is any
+        command_name[strlen(command_name) - 1] = '\0'; /*  remove newline if there is any */
     }
     iteratepoint = macro_table;
     while (iteratepoint != NULL) {
@@ -78,12 +78,12 @@ int name_valid(char *name, int IC) {
             return 0;
         }
     }
-    // amud 28 lahzor
+    /*  amud 28 lahzor */
     if (name[strlen(name) - 1] == '\n') {
-        name[strlen(name) - 1] = '\0'; // remove newline if there is any
+        name[strlen(name) - 1] = '\0'; /*  remove newline if there is any */
     }
     for (i = 0; i < INSTRUCTION_AMOUNT; i++) {
-        if (strcmp(name, known_instructions[i]) == 0) { // if macro name is known instruction name.
+        if (strcmp(name, known_instructions[i]) == 0) { /*  if macro name is known instruction name. */
             fprintf(stderr, "Error in line %d: The macro name is a known instruction name (%s).", IC,
                 known_instructions[i]);
             return 0;
@@ -128,7 +128,7 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
     int exists_error = 0;
     int IC = 1;
     Linked_List* instructionpoint = NULL;
-    char line_for_tokenisation[LINE_LENGTH]; // line to not ruin the original string
+    char line_for_tokenisation[LINE_LENGTH]; /*  line to not ruin the original string */
     char *first_word;
     char *second_word;
     char *third_word;
@@ -156,15 +156,15 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
     macro_table->first_instruction = NULL;
     macro_table->next_macro = NULL;
     strcpy(macro_table->name, "");
-    // pointer to the begging of the table to "save" the original pointer;
+    /*  pointer to the begging of the table to "save" the original pointer; */
     mcropoint = macro_table;
     exists_mcro = 0;
     while (fgets(line, LINE_LENGTH, source_asm)) {
-        // check if line is longer than the limit
+        /*  check if line is longer than the limit */
         const int size = (int) strlen(line);
         if (size > 0 && line[size - 1] != '\n') {
             int completion_char = fgetc(source_asm);
-            if (completion_char != EOF) { // when last line doesn't have "\n"
+            if (completion_char != EOF) { /*  when last line doesn't have "\n" */
                 fprintf(stderr, "Error in line %d: The instruction is longer than 80 chars.\n", IC);
                 exists_error = 1;
             }
@@ -176,11 +176,11 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
         }
         strncpy(line_for_tokenisation, line,LINE_LENGTH);
         first_word = strtok(line_for_tokenisation, " \t\n");
-        if (first_word == NULL) { // empty line
+        if (first_word == NULL) { /*  empty line */
             IC++;
             continue;
         }
-        if (first_word[0] == ';') { // comment
+        if (first_word[0] == ';') { /*  comment */
             IC++;
             continue;
         }
@@ -195,7 +195,7 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
             check if first word of the instruction is mcro
             check if "third" word is null (meaning the instruction is mcro {name}\n or '\0')
             handle space after name (is ok) */
-        if (strcmp(first_word, "mcro") == 0 && (third_word == NULL || third_word[0] == '\n')) { //
+        if (strcmp(first_word, "mcro") == 0 && (third_word == NULL || third_word[0] == '\n')) { /*  */
             macro_Linked_list *to_add;
             if (second_word == NULL) {
                 fprintf(stderr, "Error in line %d: defined a mcro with no name.", IC);
@@ -220,13 +220,13 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
                  */
                 memset(to_add, 0, sizeof (macro_Linked_list));
                 mcropoint->next_macro = to_add;
-                instructionpoint = mcropoint->first_instruction; // pointer to add instruction too
+                instructionpoint = mcropoint->first_instruction; /*  pointer to add instruction too */
             }
         }
         else if (strcmp(first_word, "mcroend") == 0 || strcmp(first_word, "mcroend\n") == 0) {
             /* macro name was undefined */
             if (exists_mcro == 0) {
-                mcropoint->first_instruction = NULL; // remove all the commands added for undefined macro
+                mcropoint->first_instruction = NULL; /*  remove all the commands added for undefined macro */
             }
             else if (mcropoint->first_instruction == NULL) {
                 fprintf(stderr, "Error in line %d: empty macro is illegal\n", IC);
@@ -241,15 +241,15 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
         else if (exists_mcro) {
             instructionpoint = insert_instruction(mcropoint, instructionpoint, line, &exists_error, IC);
         }
-        else { // comes here if (exists mcro = 0, the command is not mcro and not end mcro meaning it's instruction
+        else { /*  comes here if (exists mcro = 0, the command is not mcro and not end mcro meaning it's instruction */
             macro_Linked_list* banana = macro_table;
             if (contains(banana, first_word) || (first_word[strlen(first_word) - 1] == ':'
                         && contains(banana, second_word)
-                        && third_word == NULL)) { // check if command is in macro table
-                // bring the macro here
+                        && third_word == NULL)) { /*  check if command is in macro table */
+                /*  bring the macro here */
                 macro_Linked_list* iteratepoint = macro_table;
                 if (first_word[strlen(first_word) - 1] == '\n') {
-                    first_word[strlen(first_word) - 1] = '\0'; // remove newline if there is any
+                    first_word[strlen(first_word) - 1] = '\0'; /*  remove newline if there is any */
                 }
                 while (iteratepoint->next_macro != NULL) {
                     macro_Linked_list* trmp;
@@ -304,7 +304,7 @@ macro_Linked_list* pre_asm(char *filename, char *post_filename){
             free(iteratepoint);
             iteratepoint = trmp;
         }
-        free(iteratepoint); // free the final "NULL" node malloced to null pointers
+        free(iteratepoint); /*  free the final "NULL" node malloced to null pointers */
         fclose(source_asm);
         fclose(post_pre_asm);
         remove(post_filename);

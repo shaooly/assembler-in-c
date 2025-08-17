@@ -16,4 +16,4 @@ void second_passage(binary_line *binary_line_list, label_list *the_label_list, i
     macro_Linked_list *macro_table, char *file_name, char *original_argv);
 
 
-#endif //SECONDPASSAGE_H
+#endif /* SECONDPASSAGE_H */

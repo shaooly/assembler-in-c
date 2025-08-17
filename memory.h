@@ -13,4 +13,4 @@ extern int memory_pointer;
 
 void clean_memory(void);
 
-#endif //MEMORY_H
+#endif /* MEMORY_H */
